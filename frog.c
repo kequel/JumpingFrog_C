@@ -9,13 +9,12 @@
 #define QUIT_TIME 3 // .. seconds to quit
 #define QUIT 'q'
 #define NOKEY ' '
-#define CARS_NUMBER 6
+#define CARS_NUMBER 8
 
 #define BET_TIME 2    // 2s (sleep time between two catches)
 #define FRAME_TIME 25 // 25 ms (base frame time) (time interval between frames)
 #define PASS_TIME 200 // 25 s (time to die = no catched ball)
-#define MVB_FACTOR 5  // move every FRAME_TIME * MVB_FACTOR [ms] BALL
-#define MVC_FACTOR 5  // moving interval >= FRAME_TIME * MVC_FACTOR [ms] CATCHER
+#define MVF_FACTOR 5  // moving interval >= FRAME_TIME * MVC_FACTOR [ms] CATCHER
 
 #define MAIN_COLOR 1
 #define STAT_COLOR 2
@@ -181,10 +180,10 @@ void ShowNewStatus(WIN *W, TIMER *T, FROG *f, int pts)
 {
     box(W->window, 0, 0); // border
     mvwprintw(W->window, 1, 3, "Time: ");
-    mvwprintw(W->window, 1, 17, "Points: ");
+    mvwprintw(W->window, 1, 17, "Lives: ");
     ShowTimer(W, T->pass_time);
     mvwprintw(W->window, 1, 35, "Position: ");
-    mvwprintw(W->window, 1, 78, ".J.U.M.P.I.N.G...F.R.O.G.");
+    mvwprintw(W->window, 1, 78, "Karolina Glaza 198193");
     ShowStatus(W, f, pts);
 }
 
@@ -196,6 +195,17 @@ void PrintFrog(FROG *f)
         for (int j = 0; j < f->width; j++)
         {
             mvwprintw(f->win->window, f->y + i, f->x + j, "%c", f->shape[i][j]);
+        }
+    }
+}
+
+void DeleteFrog(FROG *f)
+{
+    for (int i = 0; i < f->height; i++)
+    {
+        for (int j = 0; j < f->width; j++)
+        {
+            mvwprintw(f->win->window, f->y + i, f->x + j, "%c", ' ');
         }
     }
 }
@@ -250,32 +260,26 @@ void ShowFrog(FROG *f, int dx, int dy)
 
     wattron(f->win->window, COLOR_PAIR(f->color));
 
+    DeleteFrog(f);
+
     if ((dy == 1) && (f->y + f->height < f->ymax))
     {
-        f->y += dy;
-        mvwprintw(f->win->window, f->y - 1, f->x, sw);
+        f->y += 2;
     }
 
     if ((dy == -1) && (f->y > f->ymin))
     {
-        f->y += dy;
-        mvwprintw(f->win->window, f->y + f->height, f->x, sw);
+        f->y += -2;
     }
 
     if ((dx == 1) && (f->x + f->width < f->xmax))
     { 
-        for (int i = 0; i < f->height; i++)
-        {
-            mvwprintw(f->win->window, f->y + i, f->x, " ");
-        }
-        f->x += dx;
+        f->x += 2;
     }
 
     if ((dx == -1) && (f->x > f->xmin))
     {
-        f->x += dx;
-        for (int i = 0; i < f->height; i++)
-            mvwprintw(f->win->window, f->y + i, f->x + f->width, " ");
+        f->x += -2;
     }
 
     PrintFrog(f);
@@ -308,7 +312,7 @@ FROG *InitFrog(WIN *w, int col)
     return frog;
 }
 
-CAR *InitCar(WIN *w, int type, int x0, int y0)
+CAR *InitCar(WIN *w, int type, int x0, int y0, int speed)
 {
     CAR *car = (CAR *)malloc(sizeof(CAR)); // C
     car->x = x0;
@@ -318,7 +322,7 @@ CAR *InitCar(WIN *w, int type, int x0, int y0)
     car->width = 10;
     car->height = 2;
     car->og_width = 10;
-    car->mv = MVB_FACTOR;
+    car->mv = speed;
     car->turn = 1; //right - default
 
     car->shape = (char **)malloc(sizeof(char *) * car->height); // array of pointers (char*)
@@ -335,7 +339,7 @@ CAR *InitCar(WIN *w, int type, int x0, int y0)
 
 void MoveFrog(FROG *f, int ch, unsigned int frame)
 {
-    if (frame - f->mv >= MVC_FACTOR)
+    if (frame - f->mv >= MVF_FACTOR)
     {
         switch (ch)
         {
@@ -470,22 +474,36 @@ void GameOver(FROG *f) {
 
     wattron(f->win->window, COLOR_PAIR(f->color));
     PrintFrog(f);
-    box(f->win->window, 0, 0);
     wrefresh(f->win->window);  
 }
 
+void ShowGoal(WIN *playwin) {
+    wattron(playwin->window, COLOR_PAIR(COLOR_BLACK));
+    for (int j = 1; j < playwin->cols - 1; j += 12) {
+        mvwprintw(playwin->window, 1, j, "-NEXT-LEVEL-");
+    }
+    for (int i = 2; i <= 3; i++) { 
+        for (int j = 1; j < playwin->cols - 1; j++) {
+            mvwprintw(playwin->window, i, j, "|");
+        }
+    }
+    wrefresh(playwin->window);
+}
 
-int MainLoop(WIN *status, FROG *frog, CAR *cars[], TIMER *timer) // 1: timer is over, 0: quit the game
+
+
+int MainLoop(WIN *status, FROG *frog, CAR *cars[], TIMER *timer) 
 {
     int key;
     int pts = 3;
-    while ((key = wgetch(status->window)) != QUIT) // NON-BLOCKING! (nodelay=TRUE)
+    while ((key = wgetch(status->window)) != QUIT && pts>0) // NON-BLOCKING! (nodelay=TRUE)
     {
         if (key == ERR)
             key = NOKEY; 
         else
         {
          MoveFrog(frog, key, timer->frame_no);
+         if(frog->y==2) return 1;
         }
         for (int i = 0; i < CARS_NUMBER; i++)
         {
@@ -495,10 +513,7 @@ int MainLoop(WIN *status, FROG *frog, CAR *cars[], TIMER *timer) // 1: timer is 
                 if (Collision_F_C(frog, cars[i]))
                 {
                     pts--;
-                 //   if(pts==0) 
-                  //  else{
-                        GameOver(frog);
-                  //  }
+                    GameOver(frog);
                 }
             }
         }
@@ -508,7 +523,8 @@ int MainLoop(WIN *status, FROG *frog, CAR *cars[], TIMER *timer) // 1: timer is 
         if (UpdateTimer(timer, status))
             return pts; // sleep inside
     }
-    return 0;
+    if(pts<=0) return 2;
+    else return 0;
 }
 
 //------------------------------------------------
@@ -524,16 +540,19 @@ int main()
     WIN *playwin = Init(mainwin, ROWS, COLS, OFFY, OFFX, PLAY_COLOR, BORDER, DELAY_ON);      // window for the playing area
     WIN *statwin = Init(mainwin, 3, COLS, ROWS + OFFY, OFFX, STAT_COLOR, BORDER, DELAY_OFF); // window for the status
     // DELAY_OFF = real-time game
+    ShowGoal(playwin);
 
     TIMER *timer = InitTimer(statwin);
     
     FROG *frog = InitFrog(playwin, FROG_COLOR_N);
     CAR *cars[CARS_NUMBER] = {NULL};
-    cars[0] = InitCar(playwin, CAR_W_COLOR, 1, 10); // wrapper car
-    cars[1] = InitCar(playwin, CAR_W_COLOR, 30, 10); // wrapper car
-    cars[2] = InitCar(playwin, CAR_B_COLOR, 1, 14); // bouncing car
-    cars[3] = InitCar(playwin, CAR_B_COLOR, 20, 7); // bouncing car
-    cars[4] = InitCar(playwin, CAR_W_COLOR, 40, 4); // wrapper car
+    cars[0] = InitCar(playwin, CAR_W_COLOR, 1, 20, 5); // wrapper car
+    cars[1] = InitCar(playwin, CAR_W_COLOR, 30, 20, 5); // wrapper car
+    cars[2] = InitCar(playwin, CAR_W_COLOR, 70, 20, 5); // wrapper car
+    cars[3] = InitCar(playwin, CAR_W_COLOR, 90, 20, 5); // wrapper car
+    cars[4] = InitCar(playwin, CAR_B_COLOR, 1, 10, 2); // bouncing car
+    cars[5] = InitCar(playwin, CAR_B_COLOR, 50, 12, 3); // bouncing car
+
 
     ShowNewStatus(statwin, timer, frog, 0);
     ShowFrog(frog, 0, 0);
@@ -543,13 +562,19 @@ int main()
             ShowCar(cars[i], 0);
     }
 
-    int result;
-    if ((result = MainLoop(statwin, frog, cars, timer)) == 0)
-        EndGame("You have decided to quit the game.", statwin);
+    int result = MainLoop(statwin, frog, cars, timer);
+    if (result == 0)
+        EndGame("End. 'Q' was pressed.", statwin);
+    else if(result==1){
+        //new level
+        EndGame("You won.", statwin);
+    }
+    else if(result == 2)
+        EndGame("End. No more lives.", statwin);
     else
     {
         char info[100];
-        sprintf(info, " Timer is over, Your points = %d.", result);
+        sprintf(info, " Timer is over");
         EndGame(info, statwin);
     }
 
