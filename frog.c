@@ -56,6 +56,7 @@ int bflag; // background color flag = 1 (window), = 0 (own)
 int mv; // move factor
 int x, y; // top-left corner
 int width, height; // sizes
+int og_width, og_height; 
 int xmin, xmax; // min/max -> place for moving in win->window
 int ymin, ymax;
 char** shape; // shape of the object (2-dim characters array (box))
@@ -202,9 +203,12 @@ ob->y += dy;
 mvwprintw(ob->win->window, ob->y + ob->height, ob->x, sw);
 }
 
-if ((dx == 1) && (ob->x + ob->width < ob->xmax)){
+if ((dx == 1) && ((ob->x + ob->width < ob->xmax) || ob->width!=ob->og_width)){ //by szlo na druga strone noramlnie
 ob->x += dx;
-for (int i = 0; i < ob->height; i++) mvwprintw(ob->win->window, ob->y + i, ob->x - 1, " ");
+for (int i = 0; i < ob->height; i++) {
+    mvwprintw(ob->win->window, ob->y + i, ob->x - 1, " ");
+}
+
 }
 
 if ((dx == -1) && (ob->x > ob->xmin)){
@@ -213,7 +217,6 @@ for (int i = 0; i < ob->height; i++) mvwprintw(ob->win->window, ob->y + i, ob->x
 }
 
 Print(ob);
-
 if (ob->bflag) wattron(ob->win->window, COLOR_PAIR(ob->win->color));
 wrefresh(ob->win->window);
 }
@@ -235,6 +238,8 @@ ob->color = col;
 ob->win = w;
 ob->width = 3;
 ob->height = 3;
+ob->og_width = 3;
+ob->og_height = 3;
 ob->mv = 0;
 
 ob->shape = (char**)malloc(sizeof(char*) * ob->height); // array of pointers (char*)
@@ -262,6 +267,8 @@ ob->revcol = rev;
 ob->win = w;
 ob->width = 10;
 ob->height = 3;
+ob->og_width = 10;
+ob->og_height = 3;
 ob->mv = MVB_FACTOR;
 
 ob->shape = (char**)malloc(sizeof(char*) * ob->height); // array of pointers (char*)
@@ -299,20 +306,23 @@ void MoveCar(OBJ* ob, int Cx, int Cy, int frame)
 int dx = 0, dy = 0;
 if (frame % ob->mv == 0) // every ob->mv-th frame make a move
 {
-if (ob->x + ob->width >= ob->xmax) { 
-        for (int i = 0; i < ob->height; i++) {
-            for (int j = 0; j < ob->width; j++) {
-                mvwprintw(ob->win->window, ob->y + i, ob->x + j, " "); // Czyści całą szerokość piłki
-            }
-        }
-        ob->x = 1; // Wróć na początek
-    } else {
-        dx = 1; // Ruch w prawo
-    }
+if(ob->x + ob->og_width >= ob->xmax){
+    ob->width--;
+}
+if(ob->width == 0) { 
+    ob->x = 1; // Wróć na początek
+    ob->width=(ob->og_width); //Wróc do swojej og długosci
+} else{
+dx = 1; 
+}
+
 
 Show(ob, dx, dy);
 }
 }
+
+
+
 
 int Collision(OBJ* c, OBJ* b) // collision of two boxes
 {
