@@ -12,8 +12,8 @@
 
 #define BET_TIME 2 // 2s (sleep time between two catches)
 #define FRAME_TIME 25 // 25 ms (base frame time) (time interval between frames)
-#define PASS_TIME 20 // 25 s (time to die = no catched ball)
-#define MVB_FACTOR 2 // move every FRAME_TIME * MVB_FACTOR [ms] BALL
+#define PASS_TIME 200 // 25 s (time to die = no catched ball)
+#define MVB_FACTOR 5 // move every FRAME_TIME * MVB_FACTOR [ms] BALL
 #define MVC_FACTOR 5 // moving interval >= FRAME_TIME * MVC_FACTOR [ms] CATCHER
 
 #define MAIN_COLOR      1
@@ -21,7 +21,7 @@
 #define PLAY_COLOR      3
 #define FROG_COLOR_N 4
 #define FROG_COLOR_R 5
-#define BALL_COLOR 6
+#define CAR_W_COLOR 6
 #define BALR_COLOR 7
 
 #define BORDER 1
@@ -87,7 +87,7 @@ init_pair(PLAY_COLOR, COLOR_BLUE, COLOR_WHITE);
 init_pair(STAT_COLOR, COLOR_WHITE, COLOR_BLUE);
 init_pair(FROG_COLOR_N, COLOR_GREEN, COLOR_WHITE);
 init_pair(FROG_COLOR_R, COLOR_GREEN, COLOR_BLACK);
-init_pair(BALL_COLOR, COLOR_RED, COLOR_WHITE);
+init_pair(CAR_W_COLOR, COLOR_RED, COLOR_WHITE);
 init_pair(BALR_COLOR, COLOR_RED, COLOR_BLUE);
 
 noecho(); // Switch off echoing, turn off cursor
@@ -181,12 +181,16 @@ ShowStatus(W, o, pts);
 
 void Print(OBJ* ob)
 {
-for (int i = 0; i < ob->height; i++)
-mvwprintw(ob->win->window, ob->y + i, ob->x, ob->shape[i]);
+for (int i = 0; i < ob->height; i++) {
+    for (int j = 0; j < ob->width; j++) {
+        mvwprintw(ob->win->window, ob->y + i, ob->x + j, "%c", ob->shape[i][j]);
+    }
+}
 }
 
 // common function for both: Catcher and Ball
 void Show(OBJ* ob, int dx, int dy) {
+
 char* sw = (char*)malloc(sizeof(char) * ob->width);
 memset(sw, ' ', ob->width);
 
@@ -204,10 +208,10 @@ mvwprintw(ob->win->window, ob->y + ob->height, ob->x, sw);
 }
 
 if ((dx == 1) && ((ob->x + ob->width < ob->xmax) || ob->width!=ob->og_width)){ //by szlo na druga strone noramlnie
-ob->x += dx;
 for (int i = 0; i < ob->height; i++) {
-    mvwprintw(ob->win->window, ob->y + i, ob->x - 1, " ");
+    mvwprintw(ob->win->window, ob->y + i, ob->x, " ");
 }
+ob->x += dx;
 
 }
 
@@ -218,6 +222,7 @@ for (int i = 0; i < ob->height; i++) mvwprintw(ob->win->window, ob->y + i, ob->x
 
 Print(ob);
 if (ob->bflag) wattron(ob->win->window, COLOR_PAIR(ob->win->color));
+box(ob->win->window, 0, 0);  //obramowanie
 wrefresh(ob->win->window);
 }
 
@@ -258,7 +263,7 @@ ob->ymax = w->rows - 1;
 return ob;
 }
 
-OBJ* InitBall(WIN* w, int col, int rev)
+OBJ* InitCar(WIN* w, int col, int rev)
 {
 OBJ* ob = (OBJ*)malloc(sizeof(OBJ)); // C
 ob->bflag = 1;
@@ -301,27 +306,30 @@ void MoveFrog(OBJ* ob, int ch, unsigned int frame)
 }
 
 
-void MoveCar(OBJ* ob, int Cx, int Cy, int frame)
+void MoveCar(OBJ* ob, int frame)
 {
 int dx = 0, dy = 0;
 if (frame % ob->mv == 0) // every ob->mv-th frame make a move
 {
-if(ob->x + ob->og_width >= ob->xmax){
+if(ob->x + ob->og_width >= (ob->xmax)){
     ob->width--;
 }
 if(ob->width == 0) { 
+    for (int i = 0; i < ob->height; i++) {
+        mvwprintw(ob->win->window, ob->y + i, ob->x + ob->width, " "); 
+    } //usuniecie pozostalosci
     ob->x = 1; // Wróć na początek
-    ob->width=(ob->og_width); //Wróc do swojej og długosci
-} else{
+    ob->width=1; //Wracaj do dlugosci
+} else if(ob->width<ob->og_width && ob->x < (ob->xmax)-(ob->og_width)){
+    ob->x = 1;
+    ob->width++;
+}else{
 dx = 1; 
 }
-
 
 Show(ob, dx, dy);
 }
 }
-
-
 
 
 int Collision(OBJ* c, OBJ* b) // collision of two boxes
@@ -334,15 +342,15 @@ else return 0;
 
 void ChangeColors(OBJ* c) { c->bflag = !c->bflag; }
 
-void Restart(OBJ* catcher, OBJ* ball)
+void Restart(OBJ* catcher, OBJ* car)
 {
 
-ChangeColors(catcher); ChangeColors(ball); Show(catcher, 0, 0); Show(ball, 0, 0);
+ChangeColors(catcher); ChangeColors(car); Show(catcher, 0, 0); Show(car, 0, 0);
 sleep(BET_TIME);
 CleanWin(catcher->win, 1);
 InitPos(catcher, (catcher->win->cols - catcher->width) / 2, (catcher->win->rows - catcher->height) / 2);
-InitPos(ball, ball->xmin, ball->ymin);
-ChangeColors(catcher); ChangeColors(ball); Show(catcher, 0, 0); Show(ball, 0, 0);
+InitPos(car, car->xmin, car->ymin);
+ChangeColors(catcher); ChangeColors(car); Show(catcher, 0, 0); Show(car, 0, 0);
 }
 
 //------------------------------------------------
@@ -375,25 +383,25 @@ return 0;
 //----------------  MainLoop FUNCTION ------------
 //------------------------------------------------
 // objects OBJ have info about the windows containing it
-int MainLoop(WIN* status, OBJ* catcher, OBJ* ball, TIMER* timer) // 1: timer is over, 0: quit the game
+int MainLoop(WIN* status, OBJ* frog, OBJ* car, TIMER* timer) // 1: timer is over, 0: quit the game
 {
-int ch;
+int key;
 int pts = 0;
-while ((ch = wgetch(status->window)) != QUIT) // NON-BLOCKING! (nodelay=TRUE)
+while ((key = wgetch(status->window)) != QUIT) // NON-BLOCKING! (nodelay=TRUE)
 {
-if (ch == ERR) ch = NOKEY; // ERR is ncurses predefined
+if (key == ERR) key = NOKEY; // ERR is ncurses predefined
 /* change background or move; update status */
-else
-{
-if (ch == 'b') { ChangeColors(catcher); CleanWin(catcher->win, 1); Show(catcher, 0, 0); Show(ball, 0, 0); }
-else MoveFrog(catcher, ch, timer->frame_no);
+else{
+if (key == 'b') { ChangeColors(frog); CleanWin(frog->win, 1); Show(frog, 0, 0); Show(car, 0, 0); }
+else MoveFrog(frog, key, timer->frame_no);
 }
-MoveCar(ball, catcher->x + catcher->width / 2, catcher->y + catcher->height / 2, timer->frame_no);
-if (Collision(catcher, ball))
+
+MoveCar(car, timer->frame_no);
+if (Collision(frog, car))
 {
-Restart(catcher, ball); pts++;
+Restart(frog, car); pts++;
 } // for testing purposes
-ShowStatus(status, catcher, pts);
+ShowStatus(status, frog, pts);
 flushinp();                     // clear input buffer (avoiding multiple key pressed)
 /* update timer */
 if (UpdateTimer(timer, status)) return pts; // sleep inside
@@ -418,14 +426,14 @@ WIN* statwin = Init(mainwin, 3, COLS, ROWS + OFFY, OFFX, STAT_COLOR, BORDER, DEL
 TIMER* timer = InitTimer(statwin);
 
 OBJ* frog = InitFrog(playwin, FROG_COLOR_N, FROG_COLOR_R);
-OBJ* ball = InitBall(playwin, BALL_COLOR, BALR_COLOR);
+OBJ* car_w = InitCar(playwin, CAR_W_COLOR, BALR_COLOR);
 
 ShowNewStatus(statwin, timer, frog, 0);
 Show(frog, 0, 0);
-Show(ball, 0, 0);
+Show(car_w, 0, 0);
 
 int result;
-if ((result = MainLoop(statwin, frog, ball, timer)) == 0)  EndGame("You have decided to quit the game.", statwin);
+if ((result = MainLoop(statwin, frog, car_w, timer)) == 0)  EndGame("You have decided to quit the game.", statwin);
 else{
 char info[100];
 sprintf(info, " Timer is over, Your points = %d.", result);
