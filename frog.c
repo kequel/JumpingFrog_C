@@ -21,7 +21,7 @@
 #define STAT_COLOR 2
 #define PLAY_COLOR 3
 #define FROG_COLOR_N 4
-#define FROG_COLOR_R 5
+
 #define CAR_W_COLOR 6
 #define CAR_B_COLOR 7
 
@@ -39,11 +39,6 @@
 
 #define RA(min, max) ((min) + rand() % ((max) - (min) + 1)) // random number between min and max (inc)
 
-//------------------------------------------------
-//----------------  DATA STRUCTURES --------------
-//------------------------------------------------
-
-// window structure
 typedef struct
 {
     WINDOW *window; // ncurses window
@@ -52,22 +47,30 @@ typedef struct
     int color;
 } WIN; // my window
 
-// moving object structure inside win(dow)
 typedef struct
 {
-    WIN *win;
-    int color;         // normal color
-    int revcol;        // reverse color
-    int bflag;         // background color flag = 1 (window), = 0 (own)
-    int mv;            // move factor
-    int x, y;          // top-left corner
-    int width, height; // sizes
-    int og_width, og_height;
-    int xmin, xmax; // min/max -> place for moving in win->window
-    int ymin, ymax;
-    int turn; //(LEFT-(-1), RIGHT -(1))
-    char **shape; // shape of the object (2-dim characters array (box))
-} OBJ;
+    WIN *win;         
+    int color;       //type also
+    int mv;           // f
+    int x, y;        
+    int width, height; 
+    int og_width; 
+    int xmin, xmax;      
+    int turn;         // w lewo: -1, w prawo: 1
+    char **shape;     // kształt obiektu (dwuwymiarowa tablica znaków, która reprezentuje obraz obiektu)
+} CAR;
+
+typedef struct
+{
+    WIN *win;         
+    int color;        
+    int mv;           
+    int x, y;         
+    int width, height; 
+    int xmin, xmax;   
+    int ymin, ymax;  
+    char **shape;     
+} FROG;
 
 typedef struct
 {
@@ -95,7 +98,6 @@ WINDOW *Start()
     init_pair(PLAY_COLOR, COLOR_BLUE, COLOR_WHITE);
     init_pair(STAT_COLOR, COLOR_WHITE, COLOR_BLUE);
     init_pair(FROG_COLOR_N, COLOR_GREEN, COLOR_WHITE);
-    init_pair(FROG_COLOR_R, COLOR_GREEN, COLOR_BLACK);
     init_pair(CAR_W_COLOR, COLOR_RED, COLOR_WHITE);
     init_pair(CAR_B_COLOR, COLOR_CYAN, COLOR_WHITE);
 
@@ -162,11 +164,10 @@ void EndGame(const char *info, WIN *W) // sth at the end
 //----------------  STATUS FUNCTIONS -------------
 //------------------------------------------------
 
-void ShowStatus(WIN *W, OBJ *o, int pts)
+void ShowStatus(WIN *W, FROG *f, int pts)
 {
-    mvwprintw(W->window, 1, 45, "x: %d  y: %d  ", o->x, o->y);
+    mvwprintw(W->window, 1, 45, "x: %d  y: %d  ", f->x, f->y);
     mvwprintw(W->window, 1, 25, "%d", pts);
-    mvwprintw(W->window, 1, 68, "%s", o->bflag ? " normal  " : " reversed");
     wrefresh(W->window);
 }
 
@@ -176,259 +177,256 @@ void ShowTimer(WIN *W, float pass_time)
     wrefresh(W->window);
 }
 
-void ShowNewStatus(WIN *W, TIMER *T, OBJ *o, int pts)
+void ShowNewStatus(WIN *W, TIMER *T, FROG *f, int pts)
 {
     box(W->window, 0, 0); // border
     mvwprintw(W->window, 1, 3, "Time: ");
     mvwprintw(W->window, 1, 17, "Points: ");
     ShowTimer(W, T->pass_time);
     mvwprintw(W->window, 1, 35, "Position: ");
-    mvwprintw(W->window, 1, 60, "Colors: ");
-    mvwprintw(W->window, 1, 78, ".C.A.T.C.H...T.H.E...B.A.L.L.");
-    ShowStatus(W, o, pts);
+    mvwprintw(W->window, 1, 78, ".J.U.M.P.I.N.G...F.R.O.G.");
+    ShowStatus(W, f, pts);
 }
 
-//------------------------------------------------
-//----------------  OBJ+ FUNCTIONS ---------------
-//------------------------------------------------
 
-void Print(OBJ *ob)
+void PrintFrog(FROG *f)
 {
-    for (int i = 0; i < ob->height; i++)
+    for (int i = 0; i < f->height; i++)
     {
-        for (int j = 0; j < ob->width; j++)
+        for (int j = 0; j < f->width; j++)
         {
-            mvwprintw(ob->win->window, ob->y + i, ob->x + j, "%c", ob->shape[i][j]);
+            mvwprintw(f->win->window, f->y + i, f->x + j, "%c", f->shape[i][j]);
+        }
+    }
+}
+
+void PrintCar(CAR *c)
+{
+    for (int i = 0; i < c->height; i++)
+    {
+        for (int j = 0; j < c->width; j++)
+        {
+            mvwprintw(c->win->window, c->y + i, c->x + j, "%c", c->shape[i][j]);
         }
     }
 }
 
 // common function for both: Catcher and Ball
-void Show(OBJ *ob, int dx, int dy)
+void ShowCar(CAR *c, int dx)
 {
 
-    char *sw = (char *)malloc(sizeof(char) * ob->width);
-    memset(sw, ' ', ob->width);
+    char *sw = (char *)malloc(sizeof(char) * c->width);
+    memset(sw, ' ', c->width);
 
-    if (ob->bflag)
-        wattron(ob->win->window, COLOR_PAIR(ob->color));
-    else
-        wattron(ob->win->window, COLOR_PAIR(ob->revcol));
 
-    if ((dy == 1) && (ob->y + ob->height < ob->ymax))
-    {
-        ob->y += dy;
-        mvwprintw(ob->win->window, ob->y - 1, ob->x, sw);
-    }
+    wattron(c->win->window, COLOR_PAIR(c->color));
 
-    if ((dy == -1) && (ob->y > ob->ymin))
-    {
-        ob->y += dy;
-        mvwprintw(ob->win->window, ob->y + ob->height, ob->x, sw);
-    }
-
-    if ((dx == 1) && ((ob->x + ob->width < ob->xmax) || ob->width != ob->og_width))
+    if ((dx == 1) && ((c->x + c->width < c->xmax) || c->width != c->og_width))
     { // by szlo na druga strone noramlnie
-        for (int i = 0; i < ob->height; i++)
+        for (int i = 0; i < c->height; i++)
         {
-            mvwprintw(ob->win->window, ob->y + i, ob->x, " ");
+            mvwprintw(c->win->window, c->y + i, c->x, " ");
         }
-        ob->x += dx;
+        c->x += dx;
     }
 
-    if ((dx == -1) && (ob->x > ob->xmin))
+    if ((dx == -1) && (c->x > c->xmin))
     {
-        ob->x += dx;
-        for (int i = 0; i < ob->height; i++)
-            mvwprintw(ob->win->window, ob->y + i, ob->x + ob->width, " ");
+        c->x += dx;
+        for (int i = 0; i < c->height; i++)
+            mvwprintw(c->win->window, c->y + i, c->x + c->width, " ");
     }
 
-    Print(ob);
-    if (ob->bflag)
-        wattron(ob->win->window, COLOR_PAIR(ob->win->color));
-    box(ob->win->window, 0, 0); // obramowanie
-    wrefresh(ob->win->window);
+    PrintCar(c);
+    box(c->win->window, 0, 0); // obramowanie
+    wrefresh(c->win->window);
 }
 
-void InitPos(OBJ *ob, int xs, int ys)
+void ShowFrog(FROG *f, int dx, int dy)
 {
-    ob->x = xs;
-    ob->y = ys;
+
+    char *sw = (char *)malloc(sizeof(char) * f->width);
+    memset(sw, ' ', f->width);
+
+    wattron(f->win->window, COLOR_PAIR(f->color));
+
+    if ((dy == 1) && (f->y + f->height < f->ymax))
+    {
+        f->y += dy;
+        mvwprintw(f->win->window, f->y - 1, f->x, sw);
+    }
+
+    if ((dy == -1) && (f->y > f->ymin))
+    {
+        f->y += dy;
+        mvwprintw(f->win->window, f->y + f->height, f->x, sw);
+    }
+
+    if ((dx == 1) && (f->x + f->width < f->xmax))
+    { 
+        for (int i = 0; i < f->height; i++)
+        {
+            mvwprintw(f->win->window, f->y + i, f->x, " ");
+        }
+        f->x += dx;
+    }
+
+    if ((dx == -1) && (f->x > f->xmin))
+    {
+        f->x += dx;
+        for (int i = 0; i < f->height; i++)
+            mvwprintw(f->win->window, f->y + i, f->x + f->width, " ");
+    }
+
+    PrintFrog(f);
+    box(f->win->window, 0, 0); // obramowanie
+    wrefresh(f->win->window);
 }
 
-OBJ *InitFrog(WIN *w, int col, int rev)
+FROG *InitFrog(WIN *w, int col)
 {
-    // OBJ* ob    = new OBJ; // C++
-    OBJ *ob = (OBJ *)malloc(sizeof(OBJ)); // C
-    ob->bflag = 1;                        // normal colors (initially)
-    ob->revcol = rev;
-    ob->color = col;
-    ob->win = w;
-    ob->width = 3;
-    ob->height = 2;
-    ob->og_width = 3;
-    ob->og_height = 2;
-    ob->mv = 0;
+    FROG *frog = (FROG *)malloc(sizeof(FROG)); // C
+    frog->color = col;
+    frog->win = w;
+    frog->width = 3;
+    frog->height = 2;
+    frog->mv = 0;
+    frog->x = (frog->win->cols - frog->width) / 2 ;
+    frog->y = (frog->win->rows - frog->height - 1);
 
-    ob->shape = (char **)malloc(sizeof(char *) * ob->height); // array of pointers (char*)
-    for (int i = 0; i < ob->height; i++)
-        ob->shape[i] = (char *)malloc(sizeof(char) * (ob->width + 1)); // +1: end-of-string (C): '\0'
+    frog->shape = (char **)malloc(sizeof(char *) * frog->height); // array of pointers (char*)
+    for (int i = 0; i < frog->height; i++)
+        frog->shape[i] = (char *)malloc(sizeof(char) * (frog->width + 1)); // +1: end-of-string (C): '\0'
 
-    strcpy(ob->shape[0], "*.*");
-    strcpy(ob->shape[1], "***");
+    strcpy(frog->shape[0], "*.*");
+    strcpy(frog->shape[1], "***");
 
-    InitPos(ob, (ob->win->cols - ob->width) / 2, (ob->win->rows - ob->height - 1));
-    ob->xmin = 1;
-    ob->xmax = w->cols - 1;
-    ob->ymin = 1;
-    ob->ymax = w->rows - 1;
-    return ob;
+    frog->xmin = 1;
+    frog->xmax = w->cols - 1;
+    frog->ymin = 1;
+    frog->ymax = w->rows - 1;
+    return frog;
 }
 
-OBJ *InitCar(WIN *w, int col, int rev, int x0, int y0)
+CAR *InitCar(WIN *w, int type, int x0, int y0)
 {
-    OBJ *ob = (OBJ *)malloc(sizeof(OBJ)); // C
-    ob->x = x0;
-    ob->y = y0;
-    ob->bflag = 1;
-    ob->color = col;
-    ob->revcol = rev;
-    ob->win = w;
-    ob->width = 10;
-    ob->height = 2;
-    ob->og_width = 10;
-    ob->og_height = 2;
-    ob->mv = MVB_FACTOR;
-    ob->turn = ONE_RIGHT;
+    CAR *car = (CAR *)malloc(sizeof(CAR)); // C
+    car->x = x0;
+    car->y = y0;
+    car->color = type;
+    car->win = w;
+    car->width = 10;
+    car->height = 2;
+    car->og_width = 10;
+    car->mv = MVB_FACTOR;
+    car->turn = 1; //right - default
 
-    ob->shape = (char **)malloc(sizeof(char *) * ob->height); // array of pointers (char*)
-    for (int i = 0; i < ob->height; i++)
-        ob->shape[i] = (char *)malloc(sizeof(char) * (ob->width + 1)); // +1: end-of-string (C): '\0'
+    car->shape = (char **)malloc(sizeof(char *) * car->height); // array of pointers (char*)
+    for (int i = 0; i < car->height; i++)
+        car->shape[i] = (char *)malloc(sizeof(char) * (car->width + 1)); // +1: end-of-string (C): '\0'
 
-    strcpy(ob->shape[0], "xxxxxxxxxx");
-    strcpy(ob->shape[1], "xxxxxxxxxx");
+    strcpy(car->shape[0], "xxxxxxxxxx");
+    strcpy(car->shape[1], "xxxxxxxxxx");
 
-    ob->xmin = 1;
-    ob->xmax = w->cols - 1;
-    ob->ymin = 1;
-    ob->ymax = w->rows - 1;
-    InitPos(ob, ob->x, ob->y);
-    return ob;
+    car->xmin = 1;
+    car->xmax = w->cols - 1;
+    return car;
 }
 
-void MoveFrog(OBJ *ob, int ch, unsigned int frame)
+void MoveFrog(FROG *f, int ch, unsigned int frame)
 {
-    if (frame - ob->mv >= MVC_FACTOR)
+    if (frame - f->mv >= MVC_FACTOR)
     {
         switch (ch)
         {
         case 'w':
-            Show(ob, 0, -1);
+            ShowFrog(f, 0, -1);
             break;
         case 's':
-            Show(ob, 0, 1);
+            ShowFrog(f, 0, 1);
             break;
         case 'a':
-            Show(ob, -1, 0);
+            ShowFrog(f, -1, 0);
             break;
         case 'd':
-            Show(ob, 1, 0);
+            ShowFrog(f, 1, 0);
             break;
         }
-        ob->mv = frame;
+        f->mv = frame;
     }
 }
 
-void MoveWrapperCar(OBJ *ob, int frame, int* dx)
+void MoveWrapperCar(CAR *c, int frame, int* dx)
 {
-    if (frame % ob->mv == 0)
+    if (frame % c->mv == 0)
     {
-        if (ob->x + ob->og_width >= (ob->xmax))
+        if (c->x + c->og_width >= (c->xmax))
         {
-            ob->width--;
+            c->width--;
         }
-        if (ob->width == 0)
+        if (c->width == 0)
         {
-            for (int i = 0; i < ob->height; i++)
+            for (int i = 0; i < c->height; i++)
             {
-                mvwprintw(ob->win->window, ob->y + i, ob->x + ob->width, " ");
+                mvwprintw(c->win->window, c->y + i, c->x + c->width, " ");
             } // usuniecie pozostalosci
-            ob->x = 1;     // Wróć na początek
-            ob->width = 1; // Wracaj do dlugosci
+            c->x = 1;     // Wróć na początek
+            c->width = 1; // Wracaj do dlugosci
         }
-        else if (ob->width < ob->og_width && ob->x < (ob->xmax) - (ob->og_width))
+        else if (c->width < c->og_width && c->x < (c->xmax) - (c->og_width))
         {
-            ob->x = 1;
-            ob->width++;
+            c->x = 1;
+            c->width++;
         }
         else
         {
-            *dx = ONE_RIGHT;
+            *dx = 1;
         }
     }
 }
 
-void MoveBouncingCar(OBJ *ob, int frame, int* dx)
+void MoveBouncingCar(CAR *c, int frame, int* dx)
 {
-    if (frame % ob->mv == 0)
+    if (frame % c->mv == 0)
     {
-        if (ob->x + ob->og_width >= (ob->xmax) || ob->x == ob->xmin)
+        if (c->x + c->og_width >= (c->xmax) || c->x == c->xmin)
         {
-            ob->turn=(ob->turn)*(-1);
+            c->turn=(c->turn)*(-1);
         }
-    *dx = ob->turn;
+    *dx = c->turn;
     }
 
 }
 
-void MoveCar(OBJ * ob, int frame)
+void MoveCar(CAR * c, int frame)
 {
-    int dx = 0, dy = 0;
+    int dx = 0;
 
-        switch (ob->color)
+        switch (c->color)
         {
         case CAR_W_COLOR:
         {
-            MoveWrapperCar(ob, frame, &dx);
+            MoveWrapperCar(c, frame, &dx);
             break;
         }
         case CAR_B_COLOR:
         {
-            MoveBouncingCar(ob, frame, &dx);
+            MoveBouncingCar(c, frame, &dx);
             break;
         }
         }
 
-        Show(ob, dx, dy);
+        ShowCar(c, dx);
 }
 
 
-int Collision(OBJ *c, OBJ *b) // collision of two boxes
+int Collision_F_C(FROG *b,CAR *c) 
 {
     if (((c->y >= b->y && c->y < b->y + b->height) || (b->y >= c->y && b->y < c->y + c->height)) &&
         ((c->x >= b->x && c->x < b->x + b->width) || (b->x >= c->x && b->x < c->x + c->width)))
         return 1;
     else
         return 0;
-}
-
-void ChangeColors(OBJ *c) { c->bflag = !c->bflag; }
-
-void Restart(OBJ *catcher, OBJ *car)
-{
-
-    ChangeColors(catcher);
-    ChangeColors(car);
-    Show(catcher, 0, 0);
-    Show(car, 0, 0);
-    sleep(BET_TIME);
-    CleanWin(catcher->win, 1);
-    InitPos(catcher, (catcher->win->cols - catcher->width) / 2, (catcher->win->rows - catcher->height) / 2);
-    InitPos(car, car->xmin, car->ymin);
-    ChangeColors(catcher);
-    ChangeColors(car);
-    Show(catcher, 0, 0);
-    Show(car, 0, 0);
 }
 
 //------------------------------------------------
@@ -460,40 +458,47 @@ int UpdateTimer(TIMER *T, WIN *status) // return 1: time is over; otherwise: 0
     return 0;
 }
 
-int MainLoop(WIN *status, OBJ *frog, OBJ *cars[], TIMER *timer) // 1: timer is over, 0: quit the game
+void GameOver(FROG *f) {
+    // clr
+    for (int i = 0; i < f->height; i++) {
+        for (int j = 0; j < f->width; j++) {
+            mvwprintw(f->win->window, f->y + i, f->x + j, " ");
+        }
+    }
+    f->x = (f->win->cols - f->width) / 2;
+    f->y = (f->win->rows - f->height - 1);
+
+    wattron(f->win->window, COLOR_PAIR(f->color));
+    PrintFrog(f);
+    box(f->win->window, 0, 0);
+    wrefresh(f->win->window);  
+}
+
+
+int MainLoop(WIN *status, FROG *frog, CAR *cars[], TIMER *timer) // 1: timer is over, 0: quit the game
 {
     int key;
-    int pts = 0;
+    int pts = 3;
     while ((key = wgetch(status->window)) != QUIT) // NON-BLOCKING! (nodelay=TRUE)
     {
         if (key == ERR)
-            key = NOKEY; // ERR is ncurses predefined
-        /* change background or move; update status */
+            key = NOKEY; 
         else
         {
-            if (key == 'b')
-            {
-                ChangeColors(frog);
-                CleanWin(frog->win, 1);
-                Show(frog, 0, 0);
-                for (int i = 0; i < CARS_NUMBER; i++)
-                {
-                    if (cars[i] != NULL)
-                        Show(cars[i], 0, 0);
-                }
-            }
-            else
-                MoveFrog(frog, key, timer->frame_no);
+         MoveFrog(frog, key, timer->frame_no);
         }
         for (int i = 0; i < CARS_NUMBER; i++)
         {
             if (cars[i] != NULL)
             {
                 MoveCar(cars[i], timer->frame_no);
-                if (Collision(frog, cars[i]))
+                if (Collision_F_C(frog, cars[i]))
                 {
-                    Restart(frog, cars[i]);
-                    pts++;
+                    pts--;
+                 //   if(pts==0) 
+                  //  else{
+                        GameOver(frog);
+                  //  }
                 }
             }
         }
@@ -521,23 +526,21 @@ int main()
     // DELAY_OFF = real-time game
 
     TIMER *timer = InitTimer(statwin);
-
-    //OBJ *end = InitEnd(playwin);
     
-    OBJ *frog = InitFrog(playwin, FROG_COLOR_N, FROG_COLOR_R);
-    OBJ *cars[CARS_NUMBER] = {NULL};
-    cars[0] = InitCar(playwin, CAR_W_COLOR, COLOR_WHITE, 1, 10); // wrapper car
-    cars[1] = InitCar(playwin, CAR_W_COLOR, COLOR_WHITE, 30, 10); // wrapper car
-    cars[2] = InitCar(playwin, CAR_B_COLOR, COLOR_WHITE, 1, 14); // bouncing car
-    cars[3] = InitCar(playwin, CAR_B_COLOR, COLOR_WHITE, 20, 7); // bouncing car
-    cars[4] = InitCar(playwin, CAR_W_COLOR, COLOR_WHITE, 40, 4); // wrapper car
+    FROG *frog = InitFrog(playwin, FROG_COLOR_N);
+    CAR *cars[CARS_NUMBER] = {NULL};
+    cars[0] = InitCar(playwin, CAR_W_COLOR, 1, 10); // wrapper car
+    cars[1] = InitCar(playwin, CAR_W_COLOR, 30, 10); // wrapper car
+    cars[2] = InitCar(playwin, CAR_B_COLOR, 1, 14); // bouncing car
+    cars[3] = InitCar(playwin, CAR_B_COLOR, 20, 7); // bouncing car
+    cars[4] = InitCar(playwin, CAR_W_COLOR, 40, 4); // wrapper car
 
     ShowNewStatus(statwin, timer, frog, 0);
-    Show(frog, 0, 0);
+    ShowFrog(frog, 0, 0);
     for (int i = 0; i < CARS_NUMBER; i++)
     {
         if (cars[i] != NULL)
-            Show(cars[i], 0, 0);
+            ShowCar(cars[i], 0);
     }
 
     int result;
