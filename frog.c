@@ -9,7 +9,10 @@
 #define QUIT_TIME 3 // .. seconds to quit
 #define QUIT 'q'
 #define NOKEY ' '
-#define CARS_NUMBER 8
+
+#define CARS_NUMBER 8 
+#define OBSTACLES_NUMBER 5
+#define JUMPSIZE 2
 
 #define BET_TIME 2    // 2s (sleep time between two catches)
 #define FRAME_TIME 25 // 25 ms (base frame time) (time interval between frames)
@@ -21,11 +24,8 @@
 #define PLAY_COLOR 3
 #define FROG_COLOR_N 4
 
-#define CAR_W_COLOR 6
-#define CAR_B_COLOR 7
-
-#define ONE_LEFT -1
-#define ONE_RIGHT 1
+#define CAR_W_COLOR 5
+#define CAR_B_COLOR 6
 
 #define BORDER 1
 #define DELAY_ON 1
@@ -70,6 +70,15 @@ typedef struct
     int ymin, ymax;  
     char **shape;     
 } FROG;
+
+typedef struct
+{
+    WIN *win;   
+    int color;       
+    int x, y;        
+    int width, height;    
+    char **shape;
+} OBSTACLE;
 
 typedef struct
 {
@@ -221,6 +230,17 @@ void PrintCar(CAR *c)
     }
 }
 
+void PrintObstacle(OBSTACLE *o)
+{
+    for (int i = 0; i < o->height; i++)
+    {
+        for (int j = 0; j < o->width; j++)
+        {
+            mvwprintw(o->win->window, o->y + i, o->x + j, "%c", o->shape[i][j]);
+        }
+    }
+}
+
 // common function for both: Catcher and Ball
 void ShowCar(CAR *c, int dx)
 {
@@ -252,7 +272,25 @@ void ShowCar(CAR *c, int dx)
     wrefresh(c->win->window);
 }
 
-void ShowFrog(FROG *f, int dx, int dy)
+int Collision_O(int y,int x, int w, int h,OBSTACLE *c) 
+{
+    if (((c->y >= y && c->y < y + h) || (y >= c->y && y < c->y + c->height)) &&
+        ((c->x >= x && c->x < x + w) || (x >= c->x && x < c->x + c->width)))
+        return 1;
+    else
+        return 0;
+}
+
+int Collision_F_anyO(FROG *f, int dx, int dy,OBSTACLE* obstacles[]) 
+{
+    for(int i=0; i<OBSTACLES_NUMBER; i++){
+    if(Collision_O(f->y+dy*JUMPSIZE, f->x+dx*JUMPSIZE, f->width, f->height, obstacles[i])==1) return 1;
+    }
+    return 0;
+}
+
+
+void ShowFrog(FROG *f, int dx, int dy, OBSTACLE* obstacles[])
 {
 
     char *sw = (char *)malloc(sizeof(char) * f->width);
@@ -262,24 +300,11 @@ void ShowFrog(FROG *f, int dx, int dy)
 
     DeleteFrog(f);
 
-    if ((dy == 1) && (f->y + f->height < f->ymax))
-    {
-        f->y += 2;
-    }
-
-    if ((dy == -1) && (f->y > f->ymin))
-    {
-        f->y += -2;
-    }
-
-    if ((dx == 1) && (f->x + f->width < f->xmax))
-    { 
-        f->x += 2;
-    }
-
-    if ((dx == -1) && (f->x > f->xmin))
-    {
-        f->x += -2;
+    if(Collision_F_anyO(f,dx,dy,obstacles)==0){
+        if ((dy == 1) && (f->y + f->height < f->ymax)) f->y += dy*JUMPSIZE;
+        if ((dy == -1) && (f->y > f->ymin)) f->y += dy*JUMPSIZE;
+        if ((dx == 1) && (f->x + f->width < f->xmax))  f->x += dx*JUMPSIZE;
+        if ((dx == -1) && (f->x > f->xmin)) f->x += dx*JUMPSIZE;
     }
 
     PrintFrog(f);
@@ -293,7 +318,7 @@ FROG *InitFrog(WIN *w, int col)
     frog->color = col;
     frog->win = w;
     frog->width = 3;
-    frog->height = 2;
+    frog->height = JUMPSIZE;
     frog->mv = 0;
     frog->x = (frog->win->cols - frog->width) / 2 ;
     frog->y = (frog->win->rows - frog->height - 1);
@@ -320,7 +345,7 @@ CAR *InitCar(WIN *w, int type, int x0, int y0, int speed)
     car->color = type;
     car->win = w;
     car->width = 10;
-    car->height = 2;
+    car->height = JUMPSIZE;
     car->og_width = 10;
     car->mv = speed;
     car->turn = 1; //right - default
@@ -329,31 +354,57 @@ CAR *InitCar(WIN *w, int type, int x0, int y0, int speed)
     for (int i = 0; i < car->height; i++)
         car->shape[i] = (char *)malloc(sizeof(char) * (car->width + 1)); // +1: end-of-string (C): '\0'
 
-    strcpy(car->shape[0], "xxxxxxxxxx");
-    strcpy(car->shape[1], "xxxxxxxxxx");
+    for(int i=0; i<JUMPSIZE; i++){
+    strcpy(car->shape[i], "xxxxxxxxxx");
+    }
 
     car->xmin = 1;
     car->xmax = w->cols - 1;
     return car;
 }
 
-void MoveFrog(FROG *f, int ch, unsigned int frame)
+OBSTACLE *InitObstacle(WIN *w, int col, int x0, int y0, int width)
+{
+    OBSTACLE *obs = (OBSTACLE *)malloc(sizeof(OBSTACLE)); // C
+    obs->x = x0;
+    obs->y = y0;
+    obs->color = col;
+    obs->win = w;
+    obs->width = width;
+    obs->height = JUMPSIZE;
+
+    obs->shape = (char **)malloc(sizeof(char *) * obs->height); // array of pointers (char*)
+    for (int i = 0; i < obs->height; i++)
+        obs->shape[i] = (char *)malloc(sizeof(char) * (obs->width + 1)); // +1: end-of-string (C): '\0'
+
+    for (int i = 0; i < obs->height; i++) {
+        for (int j = 0; j < obs->width; j++) {
+            obs->shape[i][j] = '|';
+        }
+    }
+
+
+    return obs;
+}
+
+
+void MoveFrog(FROG *f, int ch, unsigned int frame, OBSTACLE* obstacles[])
 {
     if (frame - f->mv >= MVF_FACTOR)
     {
         switch (ch)
         {
         case 'w':
-            ShowFrog(f, 0, -1);
+            ShowFrog(f, 0, -1, obstacles);
             break;
         case 's':
-            ShowFrog(f, 0, 1);
+            ShowFrog(f, 0, 1, obstacles);
             break;
         case 'a':
-            ShowFrog(f, -1, 0);
+            ShowFrog(f, -1, 0, obstacles);
             break;
         case 'd':
-            ShowFrog(f, 1, 0);
+            ShowFrog(f, 1, 0, obstacles);
             break;
         }
         f->mv = frame;
@@ -433,6 +484,7 @@ int Collision_F_C(FROG *b,CAR *c)
         return 0;
 }
 
+
 //------------------------------------------------
 //----------------  TIMER FUNCTIONS --------------
 //------------------------------------------------
@@ -482,7 +534,7 @@ void ShowGoal(WIN *playwin) {
     for (int j = 1; j < playwin->cols - 1; j += 12) {
         mvwprintw(playwin->window, 1, j, "-NEXT-LEVEL-");
     }
-    for (int i = 2; i <= 3; i++) { 
+    for (int i = 2; i < 2+JUMPSIZE; i++) { 
         for (int j = 1; j < playwin->cols - 1; j++) {
             mvwprintw(playwin->window, i, j, "|");
         }
@@ -492,17 +544,17 @@ void ShowGoal(WIN *playwin) {
 
 
 
-int MainLoop(WIN *status, FROG *frog, CAR *cars[], TIMER *timer) 
+int MainLoop(WIN *status, FROG *frog, CAR *cars[], OBSTACLE *obstacles[], TIMER *timer) 
 {
     int key;
     int pts = 3;
-    while ((key = wgetch(status->window)) != QUIT && pts>0) // NON-BLOCKING! (nodelay=TRUE)
+    while ((key = wgetch(status->window)) != QUIT && pts>0) 
     {
         if (key == ERR)
             key = NOKEY; 
         else
         {
-         MoveFrog(frog, key, timer->frame_no);
+         MoveFrog(frog, key, timer->frame_no, obstacles);
          if(frog->y==2) return 1;
         }
         for (int i = 0; i < CARS_NUMBER; i++)
@@ -514,6 +566,7 @@ int MainLoop(WIN *status, FROG *frog, CAR *cars[], TIMER *timer)
                 {
                     pts--;
                     GameOver(frog);
+                    if(pts<=0) return 2;
                 }
             }
         }
@@ -523,13 +576,34 @@ int MainLoop(WIN *status, FROG *frog, CAR *cars[], TIMER *timer)
         if (UpdateTimer(timer, status))
             return pts; // sleep inside
     }
-    if(pts<=0) return 2;
-    else return 0;
+    return 0;
 }
 
 //------------------------------------------------
 //----------------  MAIN FUNCTION ----------------
 //------------------------------------------------
+
+void initCars(WIN* playwin, CAR* cars[]){
+    int v1=5;
+    int v2=3;
+    int v3=2;
+    cars[0] = InitCar(playwin, CAR_W_COLOR, 1, 20, v1); // wrapper car
+    cars[1] = InitCar(playwin, CAR_W_COLOR, 30, 20, v1); // wrapper car
+    cars[2] = InitCar(playwin, CAR_W_COLOR, 70, 20, v1); // wrapper car
+    cars[3] = InitCar(playwin, CAR_W_COLOR, 90, 20, v1); // wrapper car
+    cars[4] = InitCar(playwin, CAR_B_COLOR, 1, 10, v2); // bouncing car
+    cars[5] = InitCar(playwin, CAR_B_COLOR, 1, 12, v3); // bouncing car
+    cars[6] = InitCar(playwin, CAR_B_COLOR, 50, 12, v3); // bouncing car
+}
+
+void InitObstacles(WIN* playwin, OBSTACLE* obstacles[]){
+    int color=COLOR_BLACK;
+    obstacles[0] = InitObstacle(playwin, color, 53, 12, 3);
+    obstacles[1] = InitObstacle(playwin, color, 12, 14, 4);
+    obstacles[2] = InitObstacle(playwin, color, 37, 14, 5);
+    obstacles[3] = InitObstacle(playwin, color, 62, 14, 4);
+    obstacles[4] = InitObstacle(playwin, color, 87, 14, 5);
+}
 
 int main()
 {
@@ -545,24 +619,29 @@ int main()
     TIMER *timer = InitTimer(statwin);
     
     FROG *frog = InitFrog(playwin, FROG_COLOR_N);
-    CAR *cars[CARS_NUMBER] = {NULL};
-    cars[0] = InitCar(playwin, CAR_W_COLOR, 1, 20, 5); // wrapper car
-    cars[1] = InitCar(playwin, CAR_W_COLOR, 30, 20, 5); // wrapper car
-    cars[2] = InitCar(playwin, CAR_W_COLOR, 70, 20, 5); // wrapper car
-    cars[3] = InitCar(playwin, CAR_W_COLOR, 90, 20, 5); // wrapper car
-    cars[4] = InitCar(playwin, CAR_B_COLOR, 1, 10, 2); // bouncing car
-    cars[5] = InitCar(playwin, CAR_B_COLOR, 50, 12, 3); // bouncing car
 
+    CAR *cars[CARS_NUMBER] = {NULL};
+
+    OBSTACLE *obstacles[OBSTACLES_NUMBER] = {NULL};
+
+    initCars(playwin, cars);
+    InitObstacles(playwin, obstacles);
 
     ShowNewStatus(statwin, timer, frog, 0);
-    ShowFrog(frog, 0, 0);
+    ShowFrog(frog, 0, 0, obstacles);
     for (int i = 0; i < CARS_NUMBER; i++)
     {
         if (cars[i] != NULL)
             ShowCar(cars[i], 0);
     }
 
-    int result = MainLoop(statwin, frog, cars, timer);
+    for (int i = 0; i < OBSTACLES_NUMBER; i++)
+    {
+        if (obstacles[i] != NULL)
+            PrintObstacle(obstacles[i]);
+    }
+
+    int result = MainLoop(statwin, frog, cars, obstacles, timer);
     if (result == 0)
         EndGame("End. 'Q' was pressed.", statwin);
     else if(result==1){
