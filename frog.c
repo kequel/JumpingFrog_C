@@ -289,6 +289,14 @@ int Collision_F_anyO(FROG *f, int dx, int dy,OBSTACLE* obstacles[])
     return 0;
 }
 
+int Collision_C_anyO(CAR *c, int dx, int dy,OBSTACLE* obstacles[]) 
+{
+    for(int i=0; i<OBSTACLES_NUMBER; i++){
+    if(Collision_O(c->y+dy, c->x+dx, c->width, c->height, obstacles[i])==1) return 1;
+    }
+    return 0;
+}
+
 
 void ShowFrog(FROG *f, int dx, int dy, OBSTACLE* obstacles[])
 {
@@ -440,11 +448,11 @@ void MoveWrapperCar(CAR *c, int frame, int* dx)
     }
 }
 
-void MoveBouncingCar(CAR *c, int frame, int* dx)
+void MoveBouncingCar(CAR *c, int frame, int* dx, OBSTACLE* obstacles[])
 {
     if (frame % c->mv == 0)
     {
-        if (c->x + c->og_width >= (c->xmax) || c->x == c->xmin)
+        if (c->x + c->og_width >= (c->xmax) || c->x == c->xmin || Collision_C_anyO(c,(c->turn),0,obstacles)==1)
         {
             c->turn=(c->turn)*(-1);
         }
@@ -453,7 +461,7 @@ void MoveBouncingCar(CAR *c, int frame, int* dx)
 
 }
 
-void MoveCar(CAR * c, int frame)
+void MoveCar(CAR * c, int frame, OBSTACLE* obstacles[])
 {
     int dx = 0;
 
@@ -466,7 +474,7 @@ void MoveCar(CAR * c, int frame)
         }
         case CAR_B_COLOR:
         {
-            MoveBouncingCar(c, frame, &dx);
+            MoveBouncingCar(c, frame, &dx, obstacles);
             break;
         }
         }
@@ -561,7 +569,7 @@ int MainLoop(WIN *status, FROG *frog, CAR *cars[], OBSTACLE *obstacles[], TIMER 
         {
             if (cars[i] != NULL)
             {
-                MoveCar(cars[i], timer->frame_no);
+                MoveCar(cars[i], timer->frame_no, obstacles);
                 if (Collision_F_C(frog, cars[i]))
                 {
                     pts--;
@@ -593,12 +601,12 @@ void initCars(WIN* playwin, CAR* cars[]){
     cars[3] = InitCar(playwin, CAR_W_COLOR, 90, 20, v1); // wrapper car
     cars[4] = InitCar(playwin, CAR_B_COLOR, 1, 10, v2); // bouncing car
     cars[5] = InitCar(playwin, CAR_B_COLOR, 1, 12, v3); // bouncing car
-    cars[6] = InitCar(playwin, CAR_B_COLOR, 50, 12, v3); // bouncing car
+    cars[6] = InitCar(playwin, CAR_B_COLOR, 85, 12, v3); // bouncing car
 }
 
 void InitObstacles(WIN* playwin, OBSTACLE* obstacles[]){
     int color=COLOR_BLACK;
-    obstacles[0] = InitObstacle(playwin, color, 53, 12, 3);
+    obstacles[0] = InitObstacle(playwin, color, 53, 12, 5);
     obstacles[1] = InitObstacle(playwin, color, 12, 14, 4);
     obstacles[2] = InitObstacle(playwin, color, 37, 14, 5);
     obstacles[3] = InitObstacle(playwin, color, 62, 14, 4);
