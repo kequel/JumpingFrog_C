@@ -10,7 +10,7 @@
 #define QUIT 'q'
 #define NOKEY ' '
 
-#define CARS_NUMBER 8 
+#define CARS_NUMBER 10
 #define OBSTACLES_NUMBER 5
 #define JUMPSIZE 2
 
@@ -22,11 +22,11 @@
 #define MAIN_COLOR 1
 #define STAT_COLOR 2
 #define PLAY_COLOR 3
-#define FROG_COLOR_N 4
-
-#define CAR_S_COLOR 4
+#define FROG_COLOR 4
 #define CAR_W_COLOR 5
 #define CAR_B_COLOR 6
+#define CAR_S_COLOR 7
+#define CAR_T_COLOR 8
 
 #define BORDER 1
 #define DELAY_ON 1
@@ -58,6 +58,7 @@ typedef struct
     int og_width; 
     int xmin, xmax;      
     int turn;         // w lewo: -1, w prawo: 1
+    int ordered;    //0 - no, 1-is ordered 2- is going
     char **shape;     // kształt obiektu (dwuwymiarowa tablica znaków, która reprezentuje obraz obiektu)
 } CAR;
 
@@ -70,6 +71,7 @@ typedef struct
     int width, height; 
     int xmin, xmax;   
     int ymin, ymax;  
+    bool calls;
     char **shape;     
 } FROG;
 
@@ -105,11 +107,13 @@ WINDOW *Start()
 
     start_color(); // initialize colors
     init_pair(MAIN_COLOR, COLOR_WHITE, COLOR_BLACK);
-    init_pair(PLAY_COLOR, COLOR_BLUE, COLOR_WHITE);
     init_pair(STAT_COLOR, COLOR_WHITE, COLOR_BLUE);
-    init_pair(CAR_S_COLOR, COLOR_GREEN, COLOR_WHITE);
+    init_pair(PLAY_COLOR, COLOR_BLUE, COLOR_WHITE);
+    init_pair(FROG_COLOR, COLOR_GREEN, COLOR_WHITE);
     init_pair(CAR_W_COLOR, COLOR_RED, COLOR_WHITE);
-    init_pair(CAR_B_COLOR, COLOR_CYAN, COLOR_WHITE);
+    init_pair(CAR_B_COLOR, COLOR_MAGENTA, COLOR_WHITE);
+    init_pair(CAR_S_COLOR, COLOR_CYAN, COLOR_WHITE);
+    init_pair(CAR_T_COLOR, COLOR_YELLOW, COLOR_WHITE);
 
     noecho(); // Switch off echoing, turn off cursor
     curs_set(0);
@@ -174,9 +178,10 @@ void EndGame(const char *info, WIN *W) // sth at the end
 //----------------  STATUS FUNCTIONS -------------
 //------------------------------------------------
 
-void ShowStatus(WIN *W, FROG *f, int pts)
+void ShowStatus(WIN *W, FROG *f, int pts, CAR* cars[])
 {
     mvwprintw(W->window, 1, 45, "x: %d  y: %d  ", f->x, f->y);
+    mvwprintw(W->window, 1, 60, "xc: %d  yc: %d  ", cars[8]->x, cars[8]->y);
     mvwprintw(W->window, 1, 25, "%d", pts);
     wrefresh(W->window);
 }
@@ -187,7 +192,7 @@ void ShowTimer(WIN *W, float pass_time)
     wrefresh(W->window);
 }
 
-void ShowNewStatus(WIN *W, TIMER *T, FROG *f, int pts)
+void ShowNewStatus(WIN *W, TIMER *T, FROG *f, int pts, CAR* cars[])
 {
     box(W->window, 0, 0); // border
     mvwprintw(W->window, 1, 3, "Time: ");
@@ -195,12 +200,13 @@ void ShowNewStatus(WIN *W, TIMER *T, FROG *f, int pts)
     ShowTimer(W, T->pass_time);
     mvwprintw(W->window, 1, 35, "Position: ");
     mvwprintw(W->window, 1, 78, "Karolina Glaza 198193");
-    ShowStatus(W, f, pts);
+    ShowStatus(W, f, pts, cars);
 }
 
 
 void PrintFrog(FROG *f)
 {
+    wattron(f->win->window, COLOR_PAIR(f->color));
     for (int i = 0; i < f->height; i++)
     {
         for (int j = 0; j < f->width; j++)
@@ -234,6 +240,7 @@ void PrintCar(CAR *c)
 
 void PrintObstacle(OBSTACLE *o)
 {
+    wattron(o->win->window, COLOR_PAIR(o->color));
     for (int i = 0; i < o->height; i++)
     {
         for (int j = 0; j < o->width; j++)
@@ -270,6 +277,7 @@ void ShowCar(CAR *c, int dx)
     }
 
     PrintCar(c);
+    wattron(c->win->window, COLOR_PAIR(PLAY_COLOR));
     box(c->win->window, 0, 0); // obramowanie
     wrefresh(c->win->window);
 }
@@ -322,6 +330,24 @@ void ShowFrog(FROG *f, int dx, int dy, OBSTACLE* obstacles[])
     wrefresh(f->win->window);
 }
 
+void orderTaxi(FROG *f, OBSTACLE* obstacles[], CAR *cars[])
+{
+    int bestCarNum=-1;
+    for(int i=0; i<CARS_NUMBER; i++){
+        if(cars[i]!=NULL &&((f->y)-(cars[i]->y))<=JUMPSIZE && cars[i]->color==CAR_T_COLOR && (f->x)+3>cars[i]->x){
+            if(bestCarNum==-1){
+                bestCarNum=i;
+            } 
+            else if((f->x)-cars[bestCarNum]->x>(f->x)-cars[i]->x){
+                bestCarNum=i;
+            }
+    }
+    if(bestCarNum>=0){
+        cars[bestCarNum]->ordered=1;
+    }
+}
+}
+
 FROG *InitFrog(WIN *w, int col)
 {
     FROG *frog = (FROG *)malloc(sizeof(FROG)); // C
@@ -332,6 +358,7 @@ FROG *InitFrog(WIN *w, int col)
     frog->mv = 0;
     frog->x = (frog->win->cols - frog->width) / 2 ;
     frog->y = (frog->win->rows - frog->height - 1);
+    frog->calls = false;
 
     frog->shape = (char **)malloc(sizeof(char *) * frog->height); // array of pointers (char*)
     for (int i = 0; i < frog->height; i++)
@@ -354,19 +381,20 @@ CAR *InitCar(WIN *w, int type, int x0, int y0, int speed, float a)
     car->y = y0;
     car->color = type;
     car->win = w;
-    car->width = 10;
+    car->width = 9;
     car->height = JUMPSIZE;
-    car->og_width = 10;
+    car->og_width = 9;
     car->mv = speed;
     car->acceleration = a;
     car->turn = 1; //right - default
+    car->ordered = 0;
 
     car->shape = (char **)malloc(sizeof(char *) * car->height); // array of pointers (char*)
     for (int i = 0; i < car->height; i++)
         car->shape[i] = (char *)malloc(sizeof(char) * (car->width + 1)); // +1: end-of-string (C): '\0'
 
     for(int i=0; i<JUMPSIZE; i++){
-    strcpy(car->shape[i], "xxxxxxxxxx");
+    strcpy(car->shape[i], "xxxxxxxxx");
     }
 
     car->xmin = 1;
@@ -399,23 +427,31 @@ OBSTACLE *InitObstacle(WIN *w, int col, int x0, int y0, int width)
 }
 
 
-void MoveFrog(FROG *f, int ch, unsigned int frame, OBSTACLE* obstacles[])
+void MoveFrog(FROG *f, int ch, unsigned int frame, OBSTACLE* obstacles[], CAR *cars[])
 {
     if (frame - f->mv >= MVF_FACTOR)
     {
         switch (ch)
         {
         case 'w':
+            f->calls=false;
             ShowFrog(f, 0, -1, obstacles);
             break;
         case 's':
+            f->calls=false;
             ShowFrog(f, 0, 1, obstacles);
             break;
         case 'a':
+            f->calls=false;
             ShowFrog(f, -1, 0, obstacles);
             break;
         case 'd':
+            f->calls=false;
             ShowFrog(f, 1, 0, obstacles);
+            break;
+        case 't':
+            f->calls=true;
+            orderTaxi(f, obstacles, cars);
             break;
         }
         f->mv = frame;
@@ -449,6 +485,42 @@ void MoveWrapperCar(CAR *c, int frame, int* dx)
             *dx = 1;
         }
     }
+}
+
+void MoveTaxiCar(CAR *c, int frame, int* dx, FROG *f)
+{
+    if(c->ordered==0){ //nie zamowiona taxi
+        MoveWrapperCar(c, frame, dx);
+    } 
+    else if(c->ordered==1){ //zamowiona taxi (jedzie)
+    if (f->x != c->x + 3) {
+        MoveWrapperCar(c, frame, dx);
+    }else {
+        c->ordered = 2;  
+    }       
+    }
+    else if(c->ordered==2){ //taxi dotarla do zaby
+        DeleteFrog(f);
+        strcpy(c->shape[0], "xxx*.*xxx");
+        strcpy(c->shape[1], "xxx***xxx");
+        MoveWrapperCar(c, frame, dx);
+        c->ordered=3;
+    }
+    else if(c->ordered==3 && f->calls==true){ //taxi jedzie z zaba
+        DeleteFrog(f);
+        MoveWrapperCar(c, frame, dx);
+    }
+    else { //zaba chce wysiasc
+        DeleteFrog(f);
+        strcpy(c->shape[0], "xxxxxxxxx");
+        strcpy(c->shape[1], "xxxxxxxxx");
+        f->x=(c->x)+3;
+        f->y=(c->y)-JUMPSIZE;
+        PrintFrog(f);
+        MoveWrapperCar(c, frame, dx);
+        c->ordered=0;
+    }
+    wrefresh(f->win->window);  
 }
 
 void MoveBouncingCar(CAR *c, int frame, int* dx, OBSTACLE* obstacles[])
@@ -504,6 +576,12 @@ void MoveCar(CAR * c, int frame, OBSTACLE* obstacles[], FROG *f)
         case CAR_S_COLOR:
         {
             MoveStoppingCar(c, frame, &dx, obstacles, f);
+            break;
+        }
+        case CAR_T_COLOR:
+        {
+            MoveTaxiCar(c, frame, &dx, f);
+            break;
         }
         }
 
@@ -590,7 +668,7 @@ int MainLoop(WIN *status, FROG *frog, CAR *cars[], OBSTACLE *obstacles[], TIMER 
             key = NOKEY; 
         else
         {
-         MoveFrog(frog, key, timer->frame_no, obstacles);
+         MoveFrog(frog, key, timer->frame_no, obstacles, cars);
          if(frog->y==2) return 1;
         }
         for (int i = 0; i < CARS_NUMBER; i++)
@@ -606,7 +684,7 @@ int MainLoop(WIN *status, FROG *frog, CAR *cars[], OBSTACLE *obstacles[], TIMER 
                 }
             }
         }
-        ShowStatus(status, frog, pts);
+        ShowStatus(status, frog, pts, cars);
         flushinp(); // clear input buffer (avoiding multiple key pressed)
         /* update timer */
         if (UpdateTimer(timer, status))
@@ -627,19 +705,19 @@ void initCars(WIN* playwin, CAR* cars[]){
     cars[1] = InitCar(playwin, CAR_W_COLOR, 30, 20, v1,0); // wrapper car
     cars[2] = InitCar(playwin, CAR_W_COLOR, 70, 20, v1,0); // wrapper car
     cars[3] = InitCar(playwin, CAR_W_COLOR, 90, 20, v1,0); // wrapper car
-    cars[4] = InitCar(playwin, CAR_B_COLOR, 1, 10, v2,0); // bouncing car
+    // cars[4] = InitCar(playwin, CAR_B_COLOR, 1, 10, v2,0); // bouncing car
     cars[5] = InitCar(playwin, CAR_B_COLOR, 1, 12, v3,0.05); // bouncing car
     cars[6] = InitCar(playwin, CAR_B_COLOR, 85, 12, v3, 0); // bouncing car
     cars[7] = InitCar(playwin, CAR_S_COLOR, 1, 16, v1, 0); //stoppingcar
+    cars[8] = InitCar(playwin, CAR_T_COLOR, 1, 8, v1, 0); //taxicar
 }
 
 void InitObstacles(WIN* playwin, OBSTACLE* obstacles[]){
-    int color=COLOR_BLACK;
-    obstacles[0] = InitObstacle(playwin, color, 53, 12, 5);
-    obstacles[1] = InitObstacle(playwin, color, 12, 14, 4);
-    obstacles[2] = InitObstacle(playwin, color, 37, 14, 5);
-    obstacles[3] = InitObstacle(playwin, color, 62, 14, 4);
-    obstacles[4] = InitObstacle(playwin, color, 87, 14, 5);
+    obstacles[0] = InitObstacle(playwin, PLAY_COLOR, 53, 12, 5);
+    obstacles[1] = InitObstacle(playwin, PLAY_COLOR, 12, 14, 4);
+    obstacles[2] = InitObstacle(playwin, PLAY_COLOR, 37, 14, 5);
+    obstacles[3] = InitObstacle(playwin, PLAY_COLOR, 62, 14, 4);
+    obstacles[4] = InitObstacle(playwin, PLAY_COLOR, 87, 14, 5);
 }
 
 int main()
@@ -655,7 +733,7 @@ int main()
 
     TIMER *timer = InitTimer(statwin);
     
-    FROG *frog = InitFrog(playwin, FROG_COLOR_N);
+    FROG *frog = InitFrog(playwin, FROG_COLOR);
 
     CAR *cars[CARS_NUMBER] = {NULL};
 
@@ -664,7 +742,7 @@ int main()
     initCars(playwin, cars);
     InitObstacles(playwin, obstacles);
 
-    ShowNewStatus(statwin, timer, frog, 0);
+    ShowNewStatus(statwin, timer, frog, 0, cars);
     ShowFrog(frog, 0, 0, obstacles);
     for (int i = 0; i < CARS_NUMBER; i++)
     {
