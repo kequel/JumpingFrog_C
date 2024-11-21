@@ -28,6 +28,7 @@
 #define CAR_B_COLOR 6
 #define CAR_S_COLOR 7
 #define CAR_T_COLOR 8
+#define CAR_G_COLOR 9
 
 #define BORDER 1
 #define DELAY_ON 1
@@ -116,6 +117,7 @@ WINDOW *Start()
     init_pair(CAR_B_COLOR, COLOR_MAGENTA, COLOR_WHITE);
     init_pair(CAR_S_COLOR, COLOR_CYAN, COLOR_WHITE);
     init_pair(CAR_T_COLOR, COLOR_YELLOW, COLOR_WHITE);
+    init_pair(CAR_G_COLOR, COLOR_WHITE, COLOR_WHITE);
 
     noecho(); // Switch off echoing, turn off cursor
     curs_set(0);
@@ -231,6 +233,7 @@ void DeleteFrog(FROG *f)
 
 void PrintCar(CAR *c)
 {
+    if(c->color!=CAR_G_COLOR){
     for (int i = 0; i < c->height; i++)
     {
         for (int j = 0; j < c->width; j++)
@@ -238,6 +241,8 @@ void PrintCar(CAR *c)
             mvwprintw(c->win->window, c->y + i, c->x + j, "%c", c->shape[i][j]);
         }
     }
+    }
+    // else DeleteCar(c);
 }
 
 void DeleteCar(CAR *c)
@@ -270,7 +275,6 @@ void ShowCar(CAR *c, int dx)
     char *sw = (char *)malloc(sizeof(char) * c->width);
     memset(sw, ' ', c->width);
 
-
     wattron(c->win->window, COLOR_PAIR(c->color));
 
     if ((dx == 1) && ((c->x + c->width < c->xmax) || c->width != c->og_width))
@@ -290,6 +294,7 @@ void ShowCar(CAR *c, int dx)
     }
 
     PrintCar(c);
+
     wattron(c->win->window, COLOR_PAIR(PLAY_COLOR));
     box(c->win->window, 0, 0); // obramowanie
     wrefresh(c->win->window);
@@ -419,8 +424,8 @@ CAR *InitCar(WIN *w, int type, int x0, int y0, int speed, float a, int ran)
 CAR *InitRandomCar(int carnum,WIN *w, int y0)
 {
     srand(time(NULL)*carnum);
-    //type (color) - 5-8
-    int random_color = rand() % 4 + 5; 
+    //type (color) - 5-9
+    int random_color = rand() % 5 + 5; 
     //speed - 1-5
     int random_speed = rand() % 5 + 1;
     //acceleration - (-0.1)-0.1
@@ -579,6 +584,7 @@ void MoveStoppingCar(CAR* c, int frame, int* dx,  OBSTACLE* obstacles[], FROG* f
 }
 
 
+
 void MoveCar(int i, int frame, OBSTACLE* obstacles[], FROG *f, CAR *cars[])
 {
     int dx = 0;
@@ -619,14 +625,21 @@ void MoveCar(int i, int frame, OBSTACLE* obstacles[], FROG *f, CAR *cars[])
             MoveTaxiCar(cars[i], frame, &dx, f);
             break;
         }
+        case CAR_G_COLOR:
+        {
+            MoveWrapperCar(cars[i], frame, &dx);
+            break;
+        }
         }
 
         ShowCar(cars[i], dx);
+        PrintFrog(f);
 }
 
 
 int Collision_F_C(FROG *b,CAR *c) 
 {
+    if(c->color==CAR_G_COLOR) return 0;
     if (((c->y >= b->y && c->y < b->y + b->height) || (b->y >= c->y && b->y < c->y + c->height)) &&
         ((c->x >= b->x && c->x < b->x + b->width) || (b->x >= c->x && b->x < c->x + c->width)))
         return 1;
