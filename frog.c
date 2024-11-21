@@ -29,6 +29,7 @@
 #define CAR_S_COLOR 7
 #define CAR_T_COLOR 8
 #define CAR_G_COLOR 9
+#define STORK_COLOR 10
 
 #define BORDER 1
 #define DELAY_ON 1
@@ -64,6 +65,19 @@ typedef struct
     int random; //0-not random 1-first round 2-last
     char **shape;     // kształt obiektu (dwuwymiarowa tablica znaków, która reprezentuje obraz obiektu)
 } CAR;
+
+typedef struct
+{
+    WIN *win;         
+    int color;
+    int mv;
+    int x, y;   
+    int width, height;      
+    int og_width; 
+    int xmin, xmax;    
+    int ymin, ymax;      
+    char **shape;     // kształt obiektu (dwuwymiarowa tablica znaków, która reprezentuje obraz obiektu)
+} STORK;
 
 typedef struct
 {
@@ -118,6 +132,7 @@ WINDOW *Start()
     init_pair(CAR_S_COLOR, COLOR_CYAN, COLOR_WHITE);
     init_pair(CAR_T_COLOR, COLOR_YELLOW, COLOR_WHITE);
     init_pair(CAR_G_COLOR, COLOR_WHITE, COLOR_WHITE);
+    init_pair(STORK_COLOR, COLOR_BLACK, COLOR_WHITE);
 
     noecho(); // Switch off echoing, turn off cursor
     curs_set(0);
@@ -245,6 +260,17 @@ void PrintCar(CAR *c)
     // else DeleteCar(c);
 }
 
+void PrintStork(STORK *s)
+{
+    for (int i = 0; i < s->height; i++)
+    {
+        for (int j = 0; j < s->width; j++)
+        {
+            mvwprintw(s->win->window, s->y + i, s->x + j, "%c", s->shape[i][j]);
+        }
+    }
+}
+
 void DeleteCar(CAR *c)
 {
     for (int i = 0; i < c->height; i++)
@@ -252,6 +278,17 @@ void DeleteCar(CAR *c)
         for (int j = 0; j < c->width; j++)
         {
             mvwprintw(c->win->window, c->y + i, c->x + j, "%c", ' ');
+        }
+    }
+}
+
+void DeleteStork(STORK *s)
+{
+    for (int i = 0; i < s->height; i++)
+    {
+        for (int j = 0; j < s->width; j++)
+        {
+            mvwprintw(s->win->window, s->y + i, s->x + j, "%c", ' ');
         }
     }
 }
@@ -266,6 +303,26 @@ void PrintObstacle(OBSTACLE *o)
             mvwprintw(o->win->window, o->y + i, o->x + j, "%c", o->shape[i][j]);
         }
     }
+}
+
+void ShowStork(STORK *s, int dx, int dy)
+{
+
+    char *sw = (char *)malloc(sizeof(char) * s->width);
+    memset(sw, ' ', s->width);
+
+    wattron(s->win->window, COLOR_PAIR(s->color));
+
+    DeleteStork(s);
+
+    s->y=s->y+dy;
+    s->x=s->x+dx;
+
+    PrintStork(s);
+
+    wattron(s->win->window, COLOR_PAIR(PLAY_COLOR));
+    box(s->win->window, 0, 0); // obramowanie
+    wrefresh(s->win->window);
 }
 
 // common function for both: Catcher and Ball
@@ -386,10 +443,36 @@ FROG *InitFrog(WIN *w, int col)
     strcpy(frog->shape[1], "***");
 
     frog->xmin = 1;
-    frog->xmax = w->cols - 1;
+    frog->xmax = w->cols - JUMPSIZE;
     frog->ymin = 1;
     frog->ymax = w->rows - 1;
     return frog;
+}
+
+STORK *InitStork(WIN *w, int col)
+{
+    STORK *stork = (STORK *)malloc(sizeof(STORK)); // C
+    stork->color = col;
+    stork->win = w;
+    stork->width = 5;
+    stork->height = 3;
+    stork->mv = 20;
+    stork->x = 1;
+    stork->y = 4;
+
+    stork->shape = (char **)malloc(sizeof(char *) * stork->height); // array of pointers (char*)
+    for (int i = 0; i < stork->height; i++)
+        stork->shape[i] = (char *)malloc(sizeof(char) * (stork->width + 1)); // +1: end-of-string (C): '\0'
+
+    strcpy(stork->shape[0], "(...)");
+    strcpy(stork->shape[1], "((.))");
+    strcpy(stork->shape[2], "((.))");
+
+    stork->xmin = 1;
+    stork->xmax = w->cols - 2;
+    stork->ymin = 1;
+    stork->ymax = w->rows - 4;
+    return stork;
 }
 
 CAR *InitCar(WIN *w, int type, int x0, int y0, int speed, float a, int ran)
@@ -633,7 +716,27 @@ void MoveCar(int i, int frame, OBSTACLE* obstacles[], FROG *f, CAR *cars[])
         }
 
         ShowCar(cars[i], dx);
-        PrintFrog(f);
+        if(f->calls==false) PrintFrog(f);
+
+}
+
+void MoveStork(int frame, STORK* s,FROG *f)
+{
+    int dx = 0;
+    int dy = 0;
+
+    if (frame % s->mv == 0)
+    {
+        if((s->x+2)-(f->x+1)==0) dx=0;
+        else if((s->x+2)-(f->x+1)<0) dx=1;
+        else if((s->x+2)-(f->x+1)>0) dx=-1;
+
+        if((s->y+2)-(f->y)==0) dy=0;
+        else if((s->y+2)-(f->y)<0) dy=1;
+        else if((s->y+2)-(f->y)>0) dy=-1;
+    }
+    ShowStork(s, dx,dy);
+
 }
 
 
@@ -707,7 +810,7 @@ void ShowGoal(WIN *playwin) {
 
 
 
-int MainLoop(WIN *status, FROG *frog, CAR *cars[], OBSTACLE *obstacles[], TIMER *timer) 
+int MainLoop(WIN *status, FROG *frog,STORK *stork, CAR *cars[], OBSTACLE *obstacles[], TIMER *timer) 
 {
     int key;
     int pts = 3;
@@ -732,6 +835,12 @@ int MainLoop(WIN *status, FROG *frog, CAR *cars[], OBSTACLE *obstacles[], TIMER 
                     if(pts<=0) return 2;
                 }
             }
+        }
+        MoveStork(timer->frame_no, stork, frog);
+        for (int i = 0; i < OBSTACLES_NUMBER; i++)
+        {
+        if (obstacles[i] != NULL)
+            PrintObstacle(obstacles[i]);
         }
         ShowStatus(status, frog, pts, cars);
         flushinp(); // clear input buffer (avoiding multiple key pressed)
@@ -786,6 +895,8 @@ int main()
     
     FROG *frog = InitFrog(playwin, FROG_COLOR);
 
+    STORK *stork = InitStork(playwin, STORK_COLOR);
+
     CAR *cars[CARS_NUMBER] = {NULL};
 
     OBSTACLE *obstacles[OBSTACLES_NUMBER] = {NULL};
@@ -807,7 +918,7 @@ int main()
             PrintObstacle(obstacles[i]);
     }
 
-    int result = MainLoop(statwin, frog, cars, obstacles, timer);
+    int result = MainLoop(statwin, frog,stork, cars, obstacles, timer);
     if (result == 0)
         EndGame("End. 'Q' was pressed.", statwin);
     else if(result==1){
