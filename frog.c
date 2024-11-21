@@ -457,16 +457,16 @@ STORK *InitStork(WIN *w, int col)
     stork->width = 5;
     stork->height = 3;
     stork->mv = 20;
-    stork->x = 1;
+    stork->x = 2;
     stork->y = 4;
 
     stork->shape = (char **)malloc(sizeof(char *) * stork->height); // array of pointers (char*)
     for (int i = 0; i < stork->height; i++)
         stork->shape[i] = (char *)malloc(sizeof(char) * (stork->width + 1)); // +1: end-of-string (C): '\0'
 
-    strcpy(stork->shape[0], "(...)");
-    strcpy(stork->shape[1], "((.))");
-    strcpy(stork->shape[2], "((.))");
+    strcpy(stork->shape[0], "(( ))");
+    strcpy(stork->shape[1], " *|* ");
+    strcpy(stork->shape[2], "(( ))");
 
     stork->xmin = 1;
     stork->xmax = w->cols - 2;
@@ -623,6 +623,8 @@ void MoveTaxiCar(CAR *c, int frame, int* dx, FROG *f)
     else if(c->ordered==3 && f->calls==true){ //taxi jedzie z zaba
         DeleteFrog(f);
         MoveWrapperCar(c, frame, dx);
+        f->x=c->x+3;
+        f->y=c->y;
     }
     else { //zaba chce wysiasc
         DeleteFrog(f);
@@ -720,7 +722,7 @@ void MoveCar(int i, int frame, OBSTACLE* obstacles[], FROG *f, CAR *cars[])
 
 }
 
-void MoveStork(int frame, STORK* s,FROG *f)
+int MoveStork(int frame, STORK* s,FROG *f)
 {
     int dx = 0;
     int dy = 0;
@@ -728,21 +730,27 @@ void MoveStork(int frame, STORK* s,FROG *f)
     if (frame % s->mv == 0)
     {
         if((s->x+2)-(f->x+1)==0) dx=0;
-        else if((s->x+2)-(f->x+1)<0) dx=1;
-        else if((s->x+2)-(f->x+1)>0) dx=-1;
+        else if((s->x+2)-(f->x+1)<0) dx=2;
+        else if((s->x+2)-(f->x+1)>0) dx=-2;
 
         if((s->y+2)-(f->y)==0) dy=0;
         else if((s->y+2)-(f->y)<0) dy=1;
         else if((s->y+2)-(f->y)>0) dy=-1;
     }
+    if(s->y+dy<4){
+        dy=0;
+    }
     ShowStork(s, dx,dy);
-
+    if(((s->x+2)-(f->x+1)>=0 && (s->y+2)-(f->y)>=0 && (s->x+2)-(f->x+1)<=1 && (s->y+2)-(f->y)<=1)) return 1;
+    else if((s->x+2)-(f->x+1)>=0 && (s->x+2)-(f->x+1)<=1 && s->y==4 && f->y==4) return 1;
+    else return 0;
 }
 
 
 int Collision_F_C(FROG *b,CAR *c) 
 {
     if(c->color==CAR_G_COLOR) return 0;
+    if(c->ordered==3) return 0;
     if (((c->y >= b->y && c->y < b->y + b->height) || (b->y >= c->y && b->y < c->y + c->height)) &&
         ((c->x >= b->x && c->x < b->x + b->width) || (b->x >= c->x && b->x < c->x + c->width)))
         return 1;
@@ -836,7 +844,11 @@ int MainLoop(WIN *status, FROG *frog,STORK *stork, CAR *cars[], OBSTACLE *obstac
                 }
             }
         }
-        MoveStork(timer->frame_no, stork, frog);
+        if(MoveStork(timer->frame_no, stork, frog)){
+            pts=0;
+            GameOver(frog);
+            return 2;
+        }
         for (int i = 0; i < OBSTACLES_NUMBER; i++)
         {
         if (obstacles[i] != NULL)
