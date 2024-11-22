@@ -7,17 +7,11 @@
 #include <ncurses.h>
 #include <time.h>
 
-#define QUIT_TIME 3 // seconds to quit
 #define QUIT 'q'
 #define NOKEY ' '
 
 #define CARS_NUMBER 11
 #define OBSTACLES_NUMBER 5
-#define JUMPSIZE 2
-
-#define FRAME_TIME 25 // 25 ms (base frame time) (time interval between frames)
-#define PASS_TIME 200 // 25 s (time to die = no catched ball)
-#define MVF_FACTOR 5  // moving interval >= FRAME_TIME * MVC_FACTOR [ms] CATCHER
 
 #define MAIN_COLOR 1
 #define STAT_COLOR 2
@@ -30,13 +24,19 @@
 #define CAR_G_COLOR 9
 #define STORK_COLOR 10
 
-#define DELAY_ON 1
-#define DELAY_OFF 0
+#define MAX_CAR_SPEED 1
+#define MIN_CAR_SPEED 5
 
-#define ROWS 25
-#define COLS 110
-#define OFFY 4
-#define OFFX 8
+//const from file (universal game parameters)
+int QUIT_TIME = 0; // seconds to quit
+int FRAME_TIME = 0; // ms (base frame time) (time interval between frames)
+int PASS_TIME = 0; // s (time to die = no catched ball)
+int MVF_FACTOR = 0; // moving interval >= FRAME_TIME * MVC_FACTOR [ms] FROG
+int ROWS = 0;
+int COLS = 0;
+int OFFY = 0;
+int OFFX = 0;
+int JUMPSIZE = 0;
 
 typedef struct{
     WINDOW *window;
@@ -148,7 +148,7 @@ WIN *Init(WINDOW *parent, int rows, int cols, int y, int x, int color, int delay
     W->color = color;
     W->window = subwin(parent, rows, cols, y, x);
     CleanWin(W);
-    if (delay == DELAY_OFF){
+    if (delay == 0){
         nodelay(W->window, TRUE); // non-blocking reading of characters (for real-time game)
     }
     wrefresh(W->window);
@@ -345,7 +345,7 @@ FROG *InitFrog(WIN *w, int col){
     frog->win = w;
     frog->width = 3;
     frog->height = JUMPSIZE;
-    frog->mv = 0;
+    frog->mv = 10;
     frog->x = (frog->win->cols - frog->width) / 2 ;
     frog->y = (frog->win->rows - frog->height - 1);
     frog->calls = false;
@@ -412,8 +412,8 @@ CAR *InitRandomCar(int carnum,WIN *w, int y0){
     srand(time(NULL)*carnum);
     //type (color) - 5-9
     int random_color = rand() % 5 + 5;
-    //speed - 1-5
-    int random_speed = rand() % 5 + 1;
+    //speed
+    int random_speed = rand() % (MIN_CAR_SPEED) + MAX_CAR_SPEED;
     //acceleration - (-0.1)-0.1
     int random_a = ((float)rand() / RAND_MAX) * 0.2 - 0.1;
     return InitCar(w, random_color, 1, y0, random_speed, random_a, 1);
@@ -731,13 +731,49 @@ void InitObstacles(WIN* playwin, OBSTACLE* obstacles[]){
     obstacles[4] = InitObstacle(playwin, 87, 14, 5);
 }
 
+int ConvertToInt(char *line) {
+    int i = 0;
+    int x = 0;
+    while (line[i] != '\n' && line[i] != '\0') {
+        if (line[i] >= '0' && line[i] <= '9') {
+            x = x * 10 + (line[i] - '0');
+        }
+        i++;
+    }
+    return x;
+}
+
+void LoadConstFromFile(const char *filename) {
+    FILE *file = fopen(filename, "r");
+    char line[250];
+    int count = 9;
+    while (count != 0 && fgets(line, sizeof(line), file)) {
+        int value = ConvertToInt(line);
+        switch (count) {
+            case 9: QUIT_TIME = value; break;
+            case 8: FRAME_TIME = value; break;
+            case 7: PASS_TIME = value; break;
+            case 6: MVF_FACTOR = value; break;
+            case 5: ROWS = value; break;
+            case 4: COLS = value; break;
+            case 3: OFFX = value; break;
+            case 2: OFFY = value; break;
+            case 1: JUMPSIZE = value; break;
+        }
+        count--;
+    }
+
+    fclose(file);  // Zamykamy plik
+}
+
+
 int main()
 {
+    LoadConstFromFile("const.txt");
     WINDOW *mainwin = Start();
     Welcome(mainwin);
-    WIN *playwin = Init(mainwin, ROWS, COLS, OFFY, OFFX, PLAY_COLOR, DELAY_ON);      // window for the playing area
-    WIN *statwin = Init(mainwin, 3, COLS, ROWS + OFFY, OFFX, STAT_COLOR, DELAY_OFF); // window for the status
-    // DELAY_OFF = real-time game
+    WIN *playwin = Init(mainwin, ROWS, COLS, OFFY, OFFX, PLAY_COLOR, 1);      // window for the playing area
+    WIN *statwin = Init(mainwin, 3, COLS, ROWS + OFFY, OFFX, STAT_COLOR, 0); // window for the status
     ShowGoal(playwin);
 
     TIMER *timer = InitTimer(statwin);
