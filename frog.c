@@ -367,7 +367,7 @@ STORK *InitStork(WIN *w, int col){
     stork->win = w;
     stork->width = 5;
     stork->height = 3;
-    stork->mv = 20;
+    stork->mv = 1000;
     stork->x = 2;
     stork->y = 4;
     stork->shape = (char **)malloc(sizeof(char *) * stork->height);
@@ -587,7 +587,7 @@ void MoveCar(int i, int frame, OBSTACLE* obstacles[], FROG *f, CAR *cars[]){
         }
     }
     ShowCar(cars[i], dx);
-    if(f->calls==false) PrintFrog(f); //only if she is not in a taxi
+    PrintFrog(f); //only if she is not in a taxi
 }
 
 int MoveStork(int frame, STORK* s,FROG *f){
@@ -697,7 +697,7 @@ int MainLoop(WIN *status, FROG *frog,STORK *stork, CAR *cars[], OBSTACLE *obstac
             if (obstacles[i] != NULL)
                 PrintObstacle(obstacles[i]);
         }
-        ShowStatus(status, frog, pts, cars);
+        ShowStatus(status, frog, pts);
         flushinp(); // clear input buffer (avoiding multiple key pressed)
         /* update timer */
         if (UpdateTimer(timer, status))
