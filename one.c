@@ -8,11 +8,8 @@
 #include <string.h>
 
 
-#define QUIT 'q'
+#define QUIT 'q'  
 #define NOKEY ' '
-
-#define CARS_NUMBER 11
-#define OBSTACLES_NUMBER 5
 
 #define MAIN_COLOR 1
 #define STAT_COLOR 2
@@ -25,8 +22,6 @@
 #define CAR_G_COLOR 9
 #define STORK_COLOR 10
 
-#define MAX_CAR_SPEED 1
-#define MIN_CAR_SPEED 5
 
 //const from file (universal game parameters)
 int QUIT_TIME; // seconds to quit
@@ -182,7 +177,6 @@ void ShowNewStatus(WIN *W, TIMER *T, FROG *f, int pts){
     ShowStatus(W, f, pts);
 }
 
-
 void PrintFrog(FROG *f){
     wattron(f->win->window, COLOR_PAIR(f->color));
     for (int i = 0; i < f->height; i++){
@@ -287,28 +281,28 @@ int Collision_O(int y,int x, int w, int h,OBSTACLE *c){
         return 0;
 }
 
-int Collision_F_anyO(FROG *f, int dx, int dy,OBSTACLE* obstacles[]){
-    for(int i=0; i<OBSTACLES_NUMBER; i++){
+int Collision_F_anyO(FROG *f, int dx, int dy,OBSTACLE* obstacles[], int obstacles_number){
+    for(int i=0; i<obstacles_number; i++){
         if(Collision_O(f->y+dy*JUMPSIZE, f->x+dx*JUMPSIZE, f->width, f->height, obstacles[i])==1) return 1;
     }
     return 0;
 }
 
-int Collision_C_anyO(CAR *c, int dx, int dy,OBSTACLE* obstacles[]){
-    for(int i=0; i<OBSTACLES_NUMBER; i++){
+int Collision_C_anyO(CAR *c, int dx, int dy,OBSTACLE* obstacles[], int obstacles_number){
+    for(int i=0; i<obstacles_number; i++){
         if(Collision_O(c->y+dy, c->x+dx, c->width, c->height, obstacles[i])==1) return 1;
     }
     return 0;
 }
 
 
-void ShowFrog(FROG *f, int dx, int dy, OBSTACLE* obstacles[]){
+void ShowFrog(FROG *f, int dx, int dy, OBSTACLE* obstacles[], int obstacles_number){
     char *sw = (char *)malloc(sizeof(char) * f->width);
     memset(sw, ' ', f->width);
     wattron(f->win->window, COLOR_PAIR(f->color));
     DeleteFrog(f);
 
-    if(Collision_F_anyO(f,dx,dy,obstacles)==0){
+    if(Collision_F_anyO(f,dx,dy,obstacles, obstacles_number)==0){
         if ((dy == 1) && (f->y + f->height < f->ymax)) f->y += dy*JUMPSIZE;
         if ((dy == -1) && (f->y > f->ymin)) f->y += dy*JUMPSIZE;
         if ((dx == 1) && (f->x + f->width < f->xmax))  f->x += dx*JUMPSIZE;
@@ -319,9 +313,9 @@ void ShowFrog(FROG *f, int dx, int dy, OBSTACLE* obstacles[]){
     wrefresh(f->win->window);
 }
 
-void orderTaxi(FROG *f, OBSTACLE* obstacles[], CAR *cars[]){
+void orderTaxi(FROG *f, OBSTACLE* obstacles[], CAR *cars[], int cars_number){
     int bestCarNum=-1;
-    for(int i=0; i<CARS_NUMBER; i++){
+    for(int i=0; i<cars_number; i++){
         if(cars[i]!=NULL &&((f->y)-(cars[i]->y))==JUMPSIZE && cars[i]->color==CAR_T_COLOR && (f->x)+3>cars[i]->x){
             if(bestCarNum==-1){
                 bestCarNum=i;
@@ -390,12 +384,12 @@ FROG *InitFrog(WIN *w, int col, const char *filename) {
     return frog;
 }
 
-STORK *InitStork(WIN *w, int col, const char *filename){
+STORK *InitStork(WIN *w, int col, const char *filename, int stork_speed){
     FILE *file = fopen(filename, "r");
     STORK *stork = (STORK *)malloc(sizeof(STORK)); // C
     stork->color = col;
     stork->win = w;
-    stork->mv = 1000;
+    stork->mv = stork_speed;
     stork->x = 2;
     stork->y = 4;
 
@@ -473,12 +467,12 @@ CAR *InitCar(WIN *w, int type, int x0, int y0, int speed, float a, int ran, cons
     return car;
 }
 
-CAR *InitRandomCar(int carnum,WIN *w, int y0, const char *filename){
+CAR *InitRandomCar(int carnum, WIN *w, int y0, const char *filename, int max_car_speed){
     srand(time(NULL)*carnum);
     //type (color) - 5-9
     int random_color = rand() % 5 + 5;
     //speed
-    int random_speed = rand() % (MIN_CAR_SPEED) + MAX_CAR_SPEED;
+    int random_speed = rand() % (max_car_speed*3) + max_car_speed;
     //acceleration - (-0.1)-0.1
     int random_a = ((float)rand() / RAND_MAX) * 0.2 - 0.1;
     return InitCar(w, random_color, 1, y0, random_speed, random_a, 1, filename);
@@ -503,28 +497,28 @@ OBSTACLE *InitObstacle(WIN *w, int x0, int y0, int width){
     return obs;
 }
 
-void MoveFrog(FROG *f, int ch, unsigned int frame, OBSTACLE* obstacles[], CAR *cars[]){
+void MoveFrog(FROG *f, int ch, unsigned int frame, OBSTACLE* obstacles[], int obstacles_number, CAR* cars[], int cars_number){
     if (frame - f->mv >= MVF_FACTOR){
         switch (ch){
             case 'w':
                 f->calls=false;
-                ShowFrog(f, 0, -1, obstacles);
+                ShowFrog(f, 0, -1, obstacles, obstacles_number);
                 break;
             case 's':
                 f->calls=false;
-                ShowFrog(f, 0, 1, obstacles);
+                ShowFrog(f, 0, 1, obstacles, obstacles_number);
                 break;
             case 'a':
                 f->calls=false;
-                ShowFrog(f, -1, 0, obstacles);
+                ShowFrog(f, -1, 0, obstacles, obstacles_number);
                 break;
             case 'd':
                 f->calls=false;
-                ShowFrog(f, 1, 0, obstacles);
+                ShowFrog(f, 1, 0, obstacles, obstacles_number);
                 break;
             case 't':
                 f->calls=true;
-                orderTaxi(f, obstacles, cars);
+                orderTaxi(f, obstacles, cars, cars_number);
                 break;
         }
         f->mv = frame;
@@ -589,23 +583,23 @@ void MoveTaxiCar(CAR *c, int frame, int* dx, FROG *f){
     wrefresh(f->win->window);
 }
 
-void MoveBouncingCar(CAR *c, int frame, int* dx, OBSTACLE* obstacles[]){
+void MoveBouncingCar(CAR *c, int frame, int* dx, OBSTACLE* obstacles[], int obstacles_number){
     if (frame % c->mv == 0){
-        if (c->x + c->og_width >= (c->xmax) || c->x == c->xmin || Collision_C_anyO(c,(c->turn),0,obstacles)==1){
+        if (c->x + c->og_width >= (c->xmax) || c->x == c->xmin || Collision_C_anyO(c,(c->turn),0,obstacles, obstacles_number)==1){
             c->turn=(c->turn)*(-1);
         }
         *dx = c->turn;
     }
 }
 
-void MoveStoppingCar(CAR* c, int frame, int* dx,  OBSTACLE* obstacles[], FROG* f){
+void MoveStoppingCar(CAR* c, int frame, int* dx,  OBSTACLE* obstacles[], int obstacles_number, FROG* f){
     //it is bouncing car
     if (frame % c->mv == 0){
         if ((c->turn==-1 && f->x - c->x == -4 && abs(f->y - c->y) <= JUMPSIZE) || (c->turn==1 && (c->x+c->width-3)-f->x == -4 && abs(f->y - c->y) <= JUMPSIZE)) {
             *dx=0;
             return;
         }
-        if (c->x + c->og_width >= (c->xmax) || c->x == c->xmin || Collision_C_anyO(c,(c->turn),0,obstacles)==1){
+        if (c->x + c->og_width >= (c->xmax) || c->x == c->xmin || Collision_C_anyO(c,(c->turn),0,obstacles, obstacles_number)==1){
             c->turn=(c->turn)*(-1);
         }
         *dx = c->turn;
@@ -614,7 +608,7 @@ void MoveStoppingCar(CAR* c, int frame, int* dx,  OBSTACLE* obstacles[], FROG* f
 
 
 
-void MoveCar(int i, int frame, OBSTACLE* obstacles[], FROG *f, CAR *cars[], const char *filename){
+void MoveCar(int i, int frame, OBSTACLE* obstacles[], int obstacles_number, FROG *f, CAR *cars[], int cars_number, const char *filename, int max_car_speed){
     int dx = 0;
     if (frame % 500 == 0 && cars[i]->acceleration > 0) { //0-no, (+0.x)-faster, (-0.x)-slower
         cars[i]->mv = (int)(cars[i]->mv * (1 - cars[i]->acceleration));
@@ -627,7 +621,7 @@ void MoveCar(int i, int frame, OBSTACLE* obstacles[], FROG *f, CAR *cars[], cons
     }
     else if(cars[i]->random==3){
         DeleteCar(cars[i]);
-        cars[i]=InitRandomCar(i,cars[i]->win, cars[i]->y, filename);
+        cars[i]=InitRandomCar(i,cars[i]->win, cars[i]->y, filename, max_car_speed);
     }
     switch (cars[i]->color){
         case CAR_W_COLOR:{
@@ -635,11 +629,11 @@ void MoveCar(int i, int frame, OBSTACLE* obstacles[], FROG *f, CAR *cars[], cons
             break;
         }
         case CAR_B_COLOR:{
-            MoveBouncingCar(cars[i], frame, &dx, obstacles);
+            MoveBouncingCar(cars[i], frame, &dx, obstacles, obstacles_number);
             break;
         }
         case CAR_S_COLOR:{
-            MoveStoppingCar(cars[i], frame, &dx, obstacles, f);
+            MoveStoppingCar(cars[i], frame, &dx, obstacles, obstacles_number, f);
             break;
         }
         case CAR_T_COLOR:{
@@ -733,19 +727,19 @@ void ShowGoal(WIN *playwin) {
     wrefresh(playwin->window);
 }
 
-int MainLoop(WIN *status, FROG *frog,STORK *stork, CAR *cars[], OBSTACLE *obstacles[], TIMER *timer, const char *filename){
+int MainLoop(WIN *status, FROG *frog,STORK *stork, CAR *cars[], int cars_number, OBSTACLE *obstacles[], int obstacles_number, TIMER *timer, const char *filename, int max_car_speed){
     int key;
     int pts = 3;
     while ((key = wgetch(status->window)) != QUIT && pts>0){
         if (key == ERR)
             key = NOKEY;
         else{
-            MoveFrog(frog, key, timer->frame_no, obstacles, cars);
+            MoveFrog(frog, key, timer->frame_no, obstacles, obstacles_number, cars, cars_number);
             if(frog->y==2) return 1;
         }
-        for (int i = 0; i < CARS_NUMBER; i++){
+        for (int i = 0; i < cars_number; i++){
             if (cars[i] != NULL){
-                MoveCar(i, timer->frame_no, obstacles, frog, cars, filename);
+                MoveCar(i, timer->frame_no, obstacles, obstacles_number, frog, cars, cars_number,filename, max_car_speed);
                 if (Collision_F_C(frog, cars[i])){
                     pts--;
                     GameOver(frog);
@@ -758,7 +752,7 @@ int MainLoop(WIN *status, FROG *frog,STORK *stork, CAR *cars[], OBSTACLE *obstac
             GameOver(frog);
             return 2;
         }
-        for (int i = 0; i < OBSTACLES_NUMBER; i++){
+        for (int i = 0; i < obstacles_number; i++){
             if (obstacles[i] != NULL)
                 PrintObstacle(obstacles[i]);
         }
@@ -771,29 +765,73 @@ int MainLoop(WIN *status, FROG *frog,STORK *stork, CAR *cars[], OBSTACLE *obstac
     return 0;
 }
 
-void initCars(WIN* playwin, CAR* cars[], const char *filename){
-    int v1=5;
-    int v2=3;
-    int v3=2;
-    cars[0] = InitCar(playwin, CAR_W_COLOR, 1, 18, v1, 0,0, filename); // wrapper car
-    cars[1] = InitCar(playwin, CAR_W_COLOR, 30, 18, v1,0,0, filename); // wrapper car
-    cars[2] = InitCar(playwin, CAR_W_COLOR, 70, 18, v1,0,0, filename); // wrapper car
-    cars[3] = InitCar(playwin, CAR_W_COLOR, 90, 18, v1,0,0, filename); // wrapper car
-    cars[4] = InitCar(playwin, CAR_B_COLOR, 1, 10, v2,0,0, filename); // bouncing car
-    cars[5] = InitCar(playwin, CAR_B_COLOR, 1, 12, v3,0.05,0,filename); // bouncing car
-    cars[6] = InitCar(playwin, CAR_B_COLOR, 85, 12, v3, 0,0,filename); // bouncing car
-    cars[7] = InitCar(playwin, CAR_S_COLOR, 1, 16, v1, 0,0,filename); //stoppingcar
-    cars[8] = InitCar(playwin, CAR_T_COLOR, 1, 20, v3, 0,0,filename); //taxicar
-    cars[9] = InitRandomCar(9, playwin, 8 , filename); //random car
-    cars[10] = InitRandomCar(8, playwin, 4, filename); //random car
+void initCars(WIN* playwin, CAR* cars[], int cars_number, const char *filename, int max_car_speed){
+    FILE *file = NULL;
+    switch(cars_number){
+        case 13: file = fopen("cars_level1.txt", "r"); break;
+        case 17: file = fopen("cars_level2.txt", "r"); break;
+        case 24: file = fopen("cars_level3.txt", "r"); break;
+    }
+    char line[250];
+    int count=0;
+    while (count!=cars_number && fgets(line, sizeof(line), file)) {
+        int color = ConvertToInt(line) ;
+        if(color!=0){
+            fgets(line, sizeof(line), file);
+            int xa = ConvertToInt(line) ;
+            fgets(line, sizeof(line), file);
+            int xb = ConvertToInt(line) ;
+            fgets(line, sizeof(line), file);
+            int y = ConvertToInt(line) ;
+            fgets(line, sizeof(line), file);
+            int speed = ConvertToInt(line)*max_car_speed ;
+            fgets(line, sizeof(line), file);
+            float acc = ConvertToInt(line) * 0.01;
+            cars[count] = InitCar(playwin, color, xa*playwin->cols/xb, y, speed, acc,0, filename); 
+            count ++;
+        } else{
+            fgets(line, sizeof(line), file);
+            int y = ConvertToInt(line) ;
+            cars[count] = InitRandomCar(count, playwin, y , filename, max_car_speed);
+            count++;
+        }
+        fgets(line, sizeof(line), file); //linia odstepu w pliku
+    }
+    fclose(file); 
 }
 
-void InitObstacles(WIN* playwin, OBSTACLE* obstacles[]){
-    obstacles[0] = InitObstacle(playwin, 53, 12, 5);
-    obstacles[1] = InitObstacle(playwin, 12, 14, 4);
-    obstacles[2] = InitObstacle(playwin, 37, 14, 5);
-    obstacles[3] = InitObstacle(playwin, 62, 14, 4);
-    obstacles[4] = InitObstacle(playwin, 87, 14, 5);
+
+void InitObstacles(WIN* playwin, OBSTACLE* obstacles[], int obstacles_number){
+    switch(obstacles_number){
+        case 10:{ //level 1
+            for(int i=0; i<4; i++){
+                obstacles[i] = InitObstacle(playwin, (i+1)*playwin->cols/5, 6, 3);
+            }
+            obstacles[4] = InitObstacle(playwin, playwin->cols/2, 10, 6);
+            for(int i=5; i<9; i++){
+                obstacles[i] = InitObstacle(playwin, (i-4)*playwin->cols/5, 14, 3);
+            }
+            obstacles[9] = InitObstacle(playwin, playwin->cols/2, 20, 6);
+            break;
+        }
+        case 6:{ //level 2
+            obstacles[0] = InitObstacle(playwin, playwin->cols/2, 8, 9);
+            obstacles[1] = InitObstacle(playwin, playwin->cols/2, 16, 5);
+            obstacles[2] = InitObstacle(playwin, playwin->cols/5, 20, 3);
+            for(int i=3; i<6; i++){
+                obstacles[i] = InitObstacle(playwin, (i-2)*playwin->cols/5, 20, 3);
+            }
+            break;
+        }
+        case 5:{ //level 3
+            obstacles[0] = InitObstacle(playwin, playwin->cols/3, 10, 9);
+            obstacles[1] = InitObstacle(playwin, 2*playwin->cols/3, 10, 9);
+            for(int i=2; i<5; i++){
+                obstacles[i] = InitObstacle(playwin, (i-1)*playwin->cols/4, 4, 6);
+            }
+            break;
+        }
+    }
 }
 
 void LoadConstFromFile(const char *filename) {
@@ -819,10 +857,37 @@ void LoadConstFromFile(const char *filename) {
     fclose(file);  
 }
 
+void loadLevelConstFromFile(int num, int* cars_number, int* obstacles_number, int* max_car_speed, int* stork_speed){
+    FILE *file = fopen("levels_const.txt", "r");
+
+    char line[250];
+    int count=4*num;
+    while (count != 0 && fgets(line, sizeof(line), file)) {
+        if(count==4) *cars_number= ConvertToInt(line);
+        if(count==3) *obstacles_number= ConvertToInt(line);
+        if(count==2) *max_car_speed= ConvertToInt(line);
+        if(count==1) *stork_speed= ConvertToInt(line);
+        count--;
+    }
+    fclose(file); 
+}
+
+// void loadLevel(int level){
+
+// }
+
 
 int main()
 {
     LoadConstFromFile("const.txt");
+
+    int level=3; ///TO CHANGE LATER - save to file etc.
+    int cars_number;
+    int obstacles_number;
+    int max_car_speed;
+    int stork_speed;
+    loadLevelConstFromFile(level, &cars_number, &obstacles_number, &max_car_speed, &stork_speed);
+
     WINDOW *mainwin = Start();
     Welcome(mainwin);
     WIN *playwin = Init(mainwin, ROWS, COLS, OFFY, OFFX, PLAY_COLOR, 1);      // window for the playing area
@@ -831,25 +896,28 @@ int main()
 
     TIMER *timer = InitTimer(statwin);
     FROG *frog = InitFrog(playwin, FROG_COLOR, "const.txt");
-    STORK *stork = InitStork(playwin, STORK_COLOR, "const.txt");
-    CAR *cars[CARS_NUMBER] = {NULL};
-    OBSTACLE *obstacles[OBSTACLES_NUMBER] = {NULL};
-    initCars(playwin, cars, "const.txt");
-    InitObstacles(playwin, obstacles);
+    STORK *stork = InitStork(playwin, STORK_COLOR, "const.txt", stork_speed);
+
+    CAR **cars = malloc(cars_number * sizeof(CAR *)); //teraz juz nie wypelniasz nullami, pamietaj prosze
+
+    OBSTACLE **obstacles = malloc(obstacles_number * sizeof(OBSTACLE*));
+
+    initCars(playwin, cars, cars_number, "const.txt", max_car_speed);
+    InitObstacles(playwin, obstacles, obstacles_number);
 
     ShowNewStatus(statwin, timer, frog, 0);
-    ShowFrog(frog, 0, 0, obstacles);
-    for (int i = 0; i < CARS_NUMBER; i++){
+    ShowFrog(frog, 0, 0, obstacles, obstacles_number);
+    for (int i = 0; i < cars_number; i++){
         if (cars[i] != NULL)
             ShowCar(cars[i], 0);
     }
 
-    for (int i = 0; i < OBSTACLES_NUMBER; i++){
+    for (int i = 0; i < obstacles_number; i++){
         if (obstacles[i] != NULL)
             PrintObstacle(obstacles[i]);
     }
 
-    int result = MainLoop(statwin, frog,stork, cars, obstacles, timer, "const.txt");
+    int result = MainLoop(statwin, frog,stork, cars, cars_number, obstacles, obstacles_number, timer, "const.txt", max_car_speed);
     if (result == 0)
         EndGame("End. 'Q' was pressed.", statwin);
     else if(result==1){
@@ -860,7 +928,7 @@ int main()
         EndGame("End. No more lives.", statwin);
     else{
         char info[100];
-        sprintf(info, " Timer is over");
+        sprintf(info, "Timer is over.");
         EndGame(info, statwin);
     }
     delwin(playwin->window); // Clean up (!)
