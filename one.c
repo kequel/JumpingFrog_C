@@ -977,70 +977,70 @@ void InitGame(char name[],int level, int *cars_number, int *obstacles_number, in
     InitObstacles(*playwin, *obstacles, *obstacles_number);
 }
 
-void TryToAddToRanking(char name[], float ranking_points, TIMER *t) {
-    ranking_points=ranking_points-(t->pass_time);
-    ranking_points=(600.0+ranking_points);
-    int ran=(int)ranking_points;
+void Ranking(char name[], float ran_pts, TIMER *t) {
+    ran_pts=ran_pts-(t->pass_time);
+    ran_pts=(600.0+ran_pts);
+    int ran=(int)ran_pts;
     printf("%s ",name);
     printf(" %d",ran);
     
     FILE *file = fopen("game_ranking.txt", "r");
 
-    char names[3][9];
-    int best_val[3];
-    int count = 0;
+    char n[3][9]; //names
+    int val[3]; //best values
+    int c = 0; //count
     char line[4];
 
-    while (count < 3 && fgets(names[count], sizeof(names[count]), file) != NULL) {
-        for (int i = 0; names[count][i] != '\0'; i++) {
-            if (names[count][i] == '\n') {
-                names[count][i] = '\0';
+    while (c < 3 && fgets(n[c], sizeof(n[c]), file) != NULL) {
+        for (int i = 0; n[c][i] != '\0'; i++) {
+            if (n[c][i] == '\n') {
+                n[c][i] = '\0';
                 break;
             }
         }
 
         if (fgets(line, sizeof(line), file) != NULL) {
-            best_val[count] = atoi(line); 
-            count++;
+            val[c] = atoi(line); 
+            c++;
         }
     }
     fclose(file);
-if (ran < best_val[2] || count < 3) { 
-    if (ran < best_val[1] || count < 2) {
-        if (ran < best_val[0] || count < 1) {
+if (ran < val[2] || c < 3) { 
+    if (ran < val[1] || c < 2) {
+        if (ran < val[0] || c < 1) {
             //run is the best
             for (int i = 0; i < 9; i++) {
-                names[2][i] = names[1][i];
-                names[1][i] = names[0][i];
-                names[0][i] = name[i];
+                n[2][i] = n[1][i];
+                n[1][i] = n[0][i];
+                n[0][i] = name[i];
                 if (name[i] == '\0') break;
             }
-            best_val[2] = best_val[1];
-            best_val[1] = best_val[0];
-            best_val[0] = ran;
+            val[2] = val[1];
+            val[1] = val[0];
+            val[0] = ran;
         } else {
             //run is second best
             for (int i = 0; i < 9; i++) {
-                names[2][i] = names[1][i];
-                names[1][i] = name[i];
+                n[2][i] = n[1][i];
+                n[1][i] = name[i];
                 if (name[i] == '\0') break;
             }
-            best_val[2] = best_val[1];
-            best_val[1] = ran;
+            val[2] = val[1];
+            val[1] = ran;
         }
     } else {
         //run is third best
         for (int i = 0; i < 9; i++) {
-            names[2][i] = name[i];
+            n[2][i] = name[i];
             if (name[i] == '\0') break;
         }
-        best_val[2] = ran;
+        val[2] = ran;
     }
 }
     file = fopen("game_ranking.txt", "w");
     if (file != NULL){
-        for (int i = 0; i < count; i++) {
-            fprintf(file, "%s\n%d\n", names[i], best_val[i]);
+        for (int i = 0; i < c; i++) {
+            fprintf(file, "%s\n%d\n", n[i], val[i]);
     }
     }
     fclose(file);
@@ -1048,10 +1048,10 @@ if (ran < best_val[2] || count < 3) {
 
 
 int main() {
-    int level = 1; 
+    int lvl = 1; 
     char name[8];
-    float ranking_points;
-    int cars_number, obstacles_number, max_car_speed, stork_speed;
+    float ran_pts;
+    int cars_n, obstacles_n, max_car_v, stork_v;
     WINDOW *mainwin = NULL;
     WIN *playwin = NULL, *statwin = NULL;
     TIMER *timer = NULL;
@@ -1060,35 +1060,39 @@ int main() {
     CAR **cars = NULL;
     OBSTACLE **obstacles = NULL;
 
-    InitGame(name, level, &cars_number, &obstacles_number, &max_car_speed, &stork_speed, &mainwin, &playwin, &statwin, &timer, &frog, &stork, &cars, &obstacles);
+    InitGame(name, lvl, &cars_n, &obstacles_n, &max_car_v, &stork_v, &mainwin, &playwin, &statwin, &timer, &frog, &stork, &cars, &obstacles);
 
     while (1) {
-        int result = RunGame(&level, statwin, playwin, mainwin, timer, frog, stork, cars, cars_number, obstacles, obstacles_number, max_car_speed);
-        if (result == 0) { //quit or die
+        int r = RunGame(&lvl, statwin, playwin, mainwin, timer, frog, stork, cars, cars_n, obstacles, obstacles_n, max_car_v);
+        if (r == 0) { //quit or die
             break;
         }
-        if(result==1){ 
-            CleanupLevel(timer, &ranking_points, playwin, statwin, mainwin, &cars, cars_number, &obstacles, obstacles_number);
+        if(r==1){ 
+            CleanupLevel(timer, &ran_pts, playwin, statwin, mainwin, &cars, cars_n, &obstacles, obstacles_n);
             timer = NULL;
             frog = NULL;
             stork = NULL;
             cars = NULL;
             obstacles = NULL;
-            InitGame(name, level, &cars_number, &obstacles_number, &max_car_speed, &stork_speed, &mainwin, &playwin, &statwin, &timer, &frog, &stork, &cars, &obstacles);
+            InitGame(name, lvl, &cars_n, &obstacles_n, &max_car_v, &stork_v, &mainwin, &playwin, &statwin, &timer, &frog, &stork, &cars, &obstacles);
         }
-        if(result==3){
+        if(r==3){
             EndGame("You completed the game.", statwin);
-            TryToAddToRanking(name, ranking_points, timer);
+            Ranking(name, ran_pts, timer);
             break;
         }
     }
-    CleanupLevel(timer, &ranking_points,playwin, statwin, mainwin, &cars, cars_number, &obstacles, obstacles_number);
+    CleanupLevel(timer, &ran_pts,playwin, statwin, mainwin, &cars, cars_n, &obstacles, obstacles_n);
     delwin(playwin->window);
     delwin(statwin->window);
     delwin(mainwin);
     endwin();
-    return EXIT_SUCCESS;
+    return 0;
 }
+
+
+
+
 
 
 
