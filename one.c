@@ -128,7 +128,6 @@ void CleanWin(WIN *W) {// cleaning window: writing " "
             mvwprintw(W->window, i, j, " ");
         }
     }
-
 }
 
 WIN *Init(WINDOW *parent, int rows, int cols, int y, int x, int color, int delay) { // window initialization: position, colors etc
@@ -734,6 +733,7 @@ int MainLoop(WIN *status, FROG *frog,STORK *stork, CAR *cars[], int cars_number,
         if (key == ERR)
             key = NOKEY;
         else{
+            nanosleep((const struct timespec[]){{0, 50L}}, NULL);
             MoveFrog(frog, key, timer->frame_no, obstacles, obstacles_number, cars, cars_number);
             if(frog->y==2) return 1;
         }
@@ -757,10 +757,9 @@ int MainLoop(WIN *status, FROG *frog,STORK *stork, CAR *cars[], int cars_number,
                 PrintObstacle(obstacles[i]);
         }
         ShowStatus(status, frog, pts);
-        flushinp(); // clear input buffer (avoiding multiple key pressed)
-        /* update timer */
+        flushinp();
         if (UpdateTimer(timer, status))
-            return pts; // sleep inside
+            return pts; 
     }
     return 0;
 }
@@ -849,7 +848,7 @@ void LoadConstFromFile(const char *filename) {
             case 5: ROWS = value; break;
             case 4: COLS = value; break;
             case 3: OFFX = value; break;
-            case 2: OFFY = value; break;
+            case 2:OFFY=value;break;
             case 1: JUMPSIZE = value; break;
         }
         count--;
@@ -872,69 +871,132 @@ void loadLevelConstFromFile(int num, int* cars_number, int* obstacles_number, in
     fclose(file); 
 }
 
-// void loadLevel(int level){
-
-// }
-
-
-int main()
-{
-    LoadConstFromFile("const.txt");
-
-    int level=3; ///TO CHANGE LATER - save to file etc.
-    int cars_number;
-    int obstacles_number;
-    int max_car_speed;
-    int stork_speed;
-    loadLevelConstFromFile(level, &cars_number, &obstacles_number, &max_car_speed, &stork_speed);
-
-    WINDOW *mainwin = Start();
-    Welcome(mainwin);
-    WIN *playwin = Init(mainwin, ROWS, COLS, OFFY, OFFX, PLAY_COLOR, 1);      // window for the playing area
-    WIN *statwin = Init(mainwin, 3, COLS, ROWS + OFFY, OFFX, STAT_COLOR, 0); // window for the status
-    ShowGoal(playwin);
-
-    TIMER *timer = InitTimer(statwin);
-    FROG *frog = InitFrog(playwin, FROG_COLOR, "const.txt");
-    STORK *stork = InitStork(playwin, STORK_COLOR, "const.txt", stork_speed);
-
-    CAR **cars = malloc(cars_number * sizeof(CAR *)); //teraz juz nie wypelniasz nullami, pamietaj prosze
-
-    OBSTACLE **obstacles = malloc(obstacles_number * sizeof(OBSTACLE*));
-
-    initCars(playwin, cars, cars_number, "const.txt", max_car_speed);
-    InitObstacles(playwin, obstacles, obstacles_number);
-
+int RunGame(int* level, WIN *statwin, WIN *playwin, WINDOW *mainwin, TIMER *timer, FROG *frog, STORK *stork, CAR **cars, int cars_number, OBSTACLE **obstacles, int obstacles_number, int max_car_speed) {
     ShowNewStatus(statwin, timer, frog, 0);
     ShowFrog(frog, 0, 0, obstacles, obstacles_number);
-    for (int i = 0; i < cars_number; i++){
+
+    for (int i = 0; i < cars_number; i++) {
         if (cars[i] != NULL)
             ShowCar(cars[i], 0);
     }
 
-    for (int i = 0; i < obstacles_number; i++){
+    for (int i = 0; i < obstacles_number; i++) {
         if (obstacles[i] != NULL)
             PrintObstacle(obstacles[i]);
     }
 
-    int result = MainLoop(statwin, frog,stork, cars, cars_number, obstacles, obstacles_number, timer, "const.txt", max_car_speed);
+    int result = MainLoop(statwin, frog, stork, cars, cars_number, obstacles, obstacles_number, timer, "const.txt", max_car_speed);
+
     if (result == 0)
         EndGame("End. 'Q' was pressed.", statwin);
-    else if(result==1){
-        //new level
-        EndGame("You won.", statwin);
+    else if (result == 1){
+        (*level)++;
+        return 1;
     }
-    else if(result == 2)
+    else if (result == 2){ 
         EndGame("End. No more lives.", statwin);
-    else{
+        result=0;
+    }
+    else {
         char info[100];
         sprintf(info, "Timer is over.");
         EndGame(info, statwin);
     }
-    delwin(playwin->window); // Clean up (!)
+    refresh();
+    return result;
+}
+
+
+
+
+void CleanupLevel(WIN *playwin, WIN *statwin, WINDOW *mainwin, CAR ***cars, int cars_number, OBSTACLE ***obstacles, int obstacles_number) {
+    for (int i = 0; i < cars_number; i++) {
+        if ((*cars)[i] != NULL) {
+            free((*cars)[i]);
+            (*cars)[i] = NULL;  
+        }
+    }
+    free(*cars);
+    *cars = NULL;
+
+    for (int i = 0; i < obstacles_number; i++) {
+        if ((*obstacles)[i] != NULL) {
+            free((*obstacles)[i]);
+            (*obstacles)[i] = NULL;  
+        }
+    }
+    free(*obstacles);
+    *obstacles = NULL;
+
+    CleanWin(playwin);
+
+    // delwin(playwin->window);
+    // delwin(statwin->window);
+    // delwin(mainwin);
+    // endwin();
+    refresh();
+}
+
+void InitGame(int level, int *cars_number, int *obstacles_number, int *max_car_speed, int *stork_speed, WINDOW **mainwin, WIN **playwin, WIN **statwin, TIMER **timer, FROG **frog, STORK **stork, CAR ***cars, OBSTACLE ***obstacles) {
+    LoadConstFromFile("const.txt");
+    loadLevelConstFromFile(level, cars_number, obstacles_number, max_car_speed, stork_speed);
+
+    if (level==1) {
+        *mainwin = Start();
+        Welcome(*mainwin);
+        *playwin = Init(*mainwin, ROWS, COLS, OFFY, OFFX, PLAY_COLOR, 1);
+        *statwin = Init(*mainwin, 3, COLS, ROWS + OFFY, OFFX, STAT_COLOR, 0);
+    }
+    ShowGoal(*playwin);
+
+    *timer = InitTimer(*statwin);
+    *frog = InitFrog(*playwin, FROG_COLOR, "const.txt");
+    *stork = InitStork(*playwin, STORK_COLOR, "const.txt", *stork_speed);
+
+    *cars = malloc(*cars_number * sizeof(CAR *));
+    *obstacles = malloc(*obstacles_number * sizeof(OBSTACLE *));
+
+    initCars(*playwin, *cars, *cars_number, "const.txt", *max_car_speed);
+    InitObstacles(*playwin, *obstacles, *obstacles_number);
+}
+
+
+int main() {
+    int level = 1; 
+    int cars_number, obstacles_number, max_car_speed, stork_speed;
+    WINDOW *mainwin = NULL;
+    WIN *playwin = NULL, *statwin = NULL;
+    TIMER *timer = NULL;
+    FROG *frog = NULL;
+    STORK *stork = NULL;
+    CAR **cars = NULL;
+    OBSTACLE **obstacles = NULL;
+
+    InitGame(level, &cars_number, &obstacles_number, &max_car_speed, &stork_speed, &mainwin, &playwin, &statwin, &timer, &frog, &stork, &cars, &obstacles);
+
+    while (1) {
+        int result = RunGame(&level, statwin, playwin, mainwin, timer, frog, stork, cars, cars_number, obstacles, obstacles_number, max_car_speed);
+        if (result == 0 || level > 3) {
+            break;
+        }
+        if(result==1){ 
+            CleanupLevel(playwin, statwin, mainwin, &cars, cars_number, &obstacles, obstacles_number);
+            // mainwin=NULL;
+            // playwin = NULL, 
+            // statwin = NULL;
+            timer = NULL;
+            frog = NULL;
+            stork = NULL;
+            cars = NULL;
+            obstacles = NULL;
+            InitGame(level, &cars_number, &obstacles_number, &max_car_speed, &stork_speed, &mainwin, &playwin, &statwin, &timer, &frog, &stork, &cars, &obstacles);
+            // printf("444\n");
+        }
+    }
+    CleanupLevel(playwin, statwin, mainwin, &cars, cars_number, &obstacles, obstacles_number);
+    delwin(playwin->window);
     delwin(statwin->window);
     delwin(mainwin);
     endwin();
-    refresh();
     return EXIT_SUCCESS;
 }
