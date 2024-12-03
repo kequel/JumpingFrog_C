@@ -1,5 +1,6 @@
 // gcc -o one one.c -lncurses
 //./one
+//https://www.spoj.com/PP24MMBS/problems/LONFLEN/
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
