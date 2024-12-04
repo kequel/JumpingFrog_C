@@ -160,9 +160,12 @@ void EndGame(const char *info, WIN *W){
     }
 }
 
-void ShowStatus(WIN *W, FROG *f, int pts){
+void ShowStatus(WIN *W, FROG *f, int pts, int lvl, char name[]){
     mvwprintw(W->window, 1, 45, "x: %d  y: %d  ", f->x, f->y);
     mvwprintw(W->window, 1, 25, "%d", pts);
+    mvwprintw(W->window, 1, 60, "LEVEL: %d", lvl);
+    mvwprintw(W->window, 1, 90, "NOW PLAYING: %s", name);
+
     wrefresh(W->window);
 }
 
@@ -171,12 +174,13 @@ void ShowTimer(WIN *W, float pass_time){
     wrefresh(W->window);
 }
 
-void ShowNewStatus(WIN *W, TIMER *T, FROG *f, int pts){
+void ShowNewStatus(WIN *W, TIMER *T, FROG *f, int pts, int lvl, char name[]){
     box(W->window, 0, 0); // border
     mvwprintw(W->window, 1, 3, "Time: ");
     mvwprintw(W->window, 1, 17, "Lives: ");
     ShowTimer(W, T->pass_time);
     mvwprintw(W->window, 1, 35, "Position: ");
+    mvwprintw(W->window, 3, 2, "[Q] - Quit      [C] - Continue Saved Game     [X] - Save Game       [T] - order Taxi");
     mvwprintw(W->window, 1, 118, "TOP 3 RESULTS:");
     FILE *file = fopen("game_ranking.txt", "r");
     char line[10];
@@ -194,7 +198,7 @@ void ShowNewStatus(WIN *W, TIMER *T, FROG *f, int pts){
     }
     fclose(file);
 
-    ShowStatus(W, f, pts);
+    ShowStatus(W, f, pts, lvl, name);
 }
 
 void PrintFrog(FROG *f){
@@ -747,12 +751,43 @@ void ShowGoal(WIN *playwin) {
     wrefresh(playwin->window);
 }
 
-int MainLoop(WIN *status, FROG *frog,STORK *stork, CAR *cars[], int cars_number, OBSTACLE *obstacles[], int obstacles_number, TIMER *timer, const char *filename, int max_car_speed){
+void SaveGame(float* ran_pts, char name[], int* lvl){
+    FILE *file = fopen("saved_game.txt", "w");
+    if (file != NULL){
+        fprintf(file, "%s\n", name);
+        fprintf(file, "%d\n", *lvl);
+        int ran=(int)(*ran_pts*(-1));
+        fprintf(file, "%d", ran);
+    }
+    fclose(file);
+}
+
+void ContinueGame(float* ran_pts, char* name, int* lvl){
+    FILE *file = fopen("saved_game.txt", "r");
+
+    char line[9];
+    fgets(line, sizeof(line), file);
+    for(int i=0; i<9; i++){
+        name[i]=line[i];
+        if(name[i]=='\n') name[i]='\0';
+    }
+    *lvl=ConvertToInt(fgets(line, sizeof(line), file))-1; //why -1 tho? idk, works
+    *ran_pts=(ConvertToInt(fgets(line, sizeof(line), file)));
+    *ran_pts=*ran_pts*(-1)+200;
+}
+
+int MainLoop(float* ran_pts, char name[], int* lvl, WIN *status, FROG *frog,STORK *stork, CAR *cars[], int cars_number, OBSTACLE *obstacles[], int obstacles_number, TIMER *timer, const char *filename, int max_car_speed){
     int key;
     int pts = 3;
     while ((key = wgetch(status->window)) != QUIT && pts>0){
-        if (key == ERR)
+        if (key == ERR){ 
             key = NOKEY;
+    } else if(key=='x'){ //save to file
+        SaveGame(ran_pts, name, lvl);
+    } else if(key=='c'){ //continue from file
+        ContinueGame(ran_pts, name, lvl);
+        return 1;
+    }
         else{
             nanosleep((const struct timespec[]){{0, 50L}}, NULL);
             MoveFrog(frog, key, timer->frame_no, obstacles, obstacles_number, cars, cars_number);
@@ -777,7 +812,7 @@ int MainLoop(WIN *status, FROG *frog,STORK *stork, CAR *cars[], int cars_number,
             if (obstacles[i] != NULL)
                 PrintObstacle(obstacles[i]);
         }
-        ShowStatus(status, frog, pts);
+        ShowStatus(status, frog, pts, *lvl, name);
         flushinp();
         if (UpdateTimer(timer, status))
             return pts; 
@@ -892,8 +927,8 @@ void loadLevelConstFromFile(int num, int* cars_number, int* obstacles_number, in
     fclose(file); 
 }
 
-int RunGame(int* level, WIN *statwin, WIN *playwin, WINDOW *mainwin, TIMER *timer, FROG *frog, STORK *stork, CAR **cars, int cars_number, OBSTACLE **obstacles, int obstacles_number, int max_car_speed) {
-    ShowNewStatus(statwin, timer, frog, 0);
+int RunGame(float* ran_pts, char name[], int* level, WIN *statwin, WIN *playwin, WINDOW *mainwin, TIMER *timer, FROG *frog, STORK *stork, CAR **cars, int cars_number, OBSTACLE **obstacles, int obstacles_number, int max_car_speed) {
+    ShowNewStatus(statwin, timer, frog, 0, *level, name);
     ShowFrog(frog, 0, 0, obstacles, obstacles_number);
 
     for (int i = 0; i < cars_number; i++) {
@@ -906,7 +941,7 @@ int RunGame(int* level, WIN *statwin, WIN *playwin, WINDOW *mainwin, TIMER *time
             PrintObstacle(obstacles[i]);
     }
 
-    int result = MainLoop(statwin, frog, stork, cars, cars_number, obstacles, obstacles_number, timer, "const.txt", max_car_speed);
+    int result = MainLoop(ran_pts, name, level, statwin, frog, stork, cars, cars_number, obstacles, obstacles_number, timer, "const.txt", max_car_speed);
 
     if (result == 0) //0-quit
         EndGame("End. 'Q' was pressed.", statwin);
@@ -1063,7 +1098,7 @@ int main() {
     InitGame(name, lvl, &cars_n, &obstacles_n, &max_car_v, &stork_v, &mainwin, &playwin, &statwin, &timer, &frog, &stork, &cars, &obstacles);
 
     while (1) {
-        int r = RunGame(&lvl, statwin, playwin, mainwin, timer, frog, stork, cars, cars_n, obstacles, obstacles_n, max_car_v);
+        int r = RunGame(&ran_pts, name, &lvl, statwin, playwin, mainwin, timer, frog, stork, cars, cars_n, obstacles, obstacles_n, max_car_v);
         if (r == 0) { //quit or die
             break;
         }
@@ -1089,11 +1124,3 @@ int main() {
     endwin();
     return 0;
 }
-
-
-
-
-
-
-
-
