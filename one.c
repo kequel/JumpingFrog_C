@@ -860,29 +860,29 @@ void InitObstacles(WIN* playwin, OBSTACLE* obstacles[], int obstacles_number){
     switch(obstacles_number){
         case 10:{ //level 1
             for(int i=0; i<4; i++){
-                obstacles[i] = InitObstacle(playwin, (i+1)*playwin->cols/5, 6, 3);
+                obstacles[i] = InitObstacle(playwin, (i+1)*playwin->cols/5-3, 6, 3);
             }
-            obstacles[4] = InitObstacle(playwin, playwin->cols/2, 10, 6);
+            obstacles[4] = InitObstacle(playwin, playwin->cols/2-4, 10, 7);
             for(int i=5; i<9; i++){
-                obstacles[i] = InitObstacle(playwin, (i-4)*playwin->cols/5, 14, 3);
+                obstacles[i] = InitObstacle(playwin, (i-4)*playwin->cols/5-2, 14, 3);
             }
-            obstacles[9] = InitObstacle(playwin, playwin->cols/2, 20, 6);
+            obstacles[9] = InitObstacle(playwin, playwin->cols/2-4, 20, 7);
             break;
         }
         case 6:{ //level 2
-            obstacles[0] = InitObstacle(playwin, playwin->cols/2, 8, 9);
-            obstacles[1] = InitObstacle(playwin, playwin->cols/2, 16, 5);
-            obstacles[2] = InitObstacle(playwin, playwin->cols/5, 20, 3);
+            obstacles[0] = InitObstacle(playwin, playwin->cols/2-5, 8, 9);
+            obstacles[1] = InitObstacle(playwin, playwin->cols/2-3, 16, 5);
+            obstacles[2] = InitObstacle(playwin, playwin->cols/4-2, 20, 3);
             for(int i=3; i<6; i++){
-                obstacles[i] = InitObstacle(playwin, (i-2)*playwin->cols/5, 20, 3);
+                obstacles[i] = InitObstacle(playwin, (i-2)*playwin->cols/4-2, 20, 3);
             }
             break;
         }
         case 5:{ //level 3
-            obstacles[0] = InitObstacle(playwin, playwin->cols/3, 10, 9);
-            obstacles[1] = InitObstacle(playwin, 2*playwin->cols/3, 10, 9);
+            obstacles[0] = InitObstacle(playwin, playwin->cols/3-4, 10, 9);
+            obstacles[1] = InitObstacle(playwin, 2*playwin->cols/3-4, 10, 9);
             for(int i=2; i<5; i++){
-                obstacles[i] = InitObstacle(playwin, (i-1)*playwin->cols/4, 4, 6);
+                obstacles[i] = InitObstacle(playwin, (i-1)*playwin->cols/4-4, 4, 6);
             }
             break;
         }
