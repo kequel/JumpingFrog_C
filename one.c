@@ -1,6 +1,15 @@
 // gcc -o one one.c -lncurses
 //./one
+
+/*******************************************/
+/*Longest function tester - limit: 1024 bytes */
 //https://www.spoj.com/PP24MMBS/problems/LONFLEN/
+/*******************************************/
+
+/*******************************************/
+//project made using demo game Catch the Ball from dr hab. inż. Michał Małafiejski https://github.com/animima
+/*******************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -93,7 +102,7 @@ typedef struct{
 WINDOW *Start(){
     WINDOW *win;
     if ((win = initscr()) == NULL){
-        fprintf(stderr, "Error initialising ncurses.\n");
+        fprintf(stderr, "Error initialising.\n");
         exit(EXIT_FAILURE);
     }
     start_color();
@@ -170,7 +179,7 @@ void ShowStatus(WIN *W, FROG *f, int pts, int lvl, char name[]){
 }
 
 void ShowTimer(WIN *W, float pass_time){
-    mvwprintw(W->window, 1, 9, "%.2f", pass_time);
+    mvwprintw(W->window, 1, 9, "%.2f", 200.0-pass_time);
     wrefresh(W->window);
 }
 
@@ -717,14 +726,22 @@ TIMER *InitTimer(WIN *status){
     return timer;
 }
 
-int UpdateTimer(TIMER *T, WIN *status){ // return 1: time is over; otherwise: 0
+int UpdateTimer(TIMER *T, WIN *status, int new_time){ // return 1: time is over; otherwise: 0
     T->frame_no++;
+    float new=new_time+0.0;
     T->pass_time = PASS_TIME - (T->frame_no * T->frame_time / 1000.0);
     if (T->pass_time < (T->frame_time / 1000.0)){
         T->pass_time = 0; // make this zero (floating point!)
     }
     else Sleep(T->frame_time);
+    if(new){
+        // printf("before: %.2f  ", T->pass_time);
+        // printf("new; %.2f  ", new);
+        T->pass_time = new -(T->frame_no * T->frame_time / 1000.0);
+        // printf("after %.2f", T->pass_time);
+    } 
     ShowTimer(status, T->pass_time);
+    // if (new) printf("after2 %.2f", T->pass_time);
     if (T->pass_time == 0) return 1;
     return 0;
 }
@@ -762,7 +779,7 @@ void SaveGame(float* ran_pts, char name[], int* lvl){
     fclose(file);
 }
 
-void ContinueGame(float* ran_pts, char* name, int* lvl){
+void ContinueGame(float* ran_pts, char* name, int* lvl, TIMER *T, WIN *status){
     FILE *file = fopen("saved_game.txt", "r");
 
     char line[9];
@@ -771,9 +788,10 @@ void ContinueGame(float* ran_pts, char* name, int* lvl){
         name[i]=line[i];
         if(name[i]=='\n') name[i]='\0';
     }
-    *lvl=ConvertToInt(fgets(line, sizeof(line), file))-1; //why -1 tho? idk, works
+    *lvl=ConvertToInt(fgets(line, sizeof(line), file))-1; //later it increments
     *ran_pts=(ConvertToInt(fgets(line, sizeof(line), file)));
     *ran_pts=*ran_pts*(-1)+200;
+    UpdateTimer(T, status, (200-*ran_pts));
 }
 
 int MainLoop(float* ran_pts, char name[], int* lvl, WIN *status, FROG *frog,STORK *stork, CAR *cars[], int cars_number, OBSTACLE *obstacles[], int obstacles_number, TIMER *timer, const char *filename, int max_car_speed){
@@ -785,7 +803,7 @@ int MainLoop(float* ran_pts, char name[], int* lvl, WIN *status, FROG *frog,STOR
     } else if(key=='x'){ //save to file
         SaveGame(ran_pts, name, lvl);
     } else if(key=='c'){ //continue from file
-        ContinueGame(ran_pts, name, lvl);
+        ContinueGame(ran_pts, name, lvl, timer, status);
         return 1;
     }
         else{
@@ -814,7 +832,7 @@ int MainLoop(float* ran_pts, char name[], int* lvl, WIN *status, FROG *frog,STOR
         }
         ShowStatus(status, frog, pts, *lvl, name);
         flushinp();
-        if (UpdateTimer(timer, status))
+        if (key != 'c' && UpdateTimer(timer, status, 0))
             return pts; 
     }
     return 0;
@@ -1102,7 +1120,7 @@ int main() {
         if (r == 0) { //quit or die
             break;
         }
-        if(r==1){ 
+        if(r==1){ //new level
             CleanupLevel(timer, &ran_pts, playwin, statwin, mainwin, &cars, cars_n, &obstacles, obstacles_n);
             timer = NULL;
             frog = NULL;
@@ -1111,7 +1129,7 @@ int main() {
             obstacles = NULL;
             InitGame(name, lvl, &cars_n, &obstacles_n, &max_car_v, &stork_v, &mainwin, &playwin, &statwin, &timer, &frog, &stork, &cars, &obstacles);
         }
-        if(r==3){
+        if(r==3){ //game complete
             EndGame("You completed the game.", statwin);
             Ranking(name, ran_pts, timer);
             break;
