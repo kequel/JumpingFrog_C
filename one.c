@@ -17,7 +17,6 @@
 #include <time.h>
 #include <string.h>
 
-
 #define QUIT 'q'  
 #define NOKEY ' '
 
@@ -123,7 +122,20 @@ WINDOW *Start(){
 
 void Welcome(WINDOW *win, char* name) {
     mvwaddstr(win, 1, 1, "JUMPING FROG GAME");
-    mvwaddstr(win, 2, 1, "Enter your name: ");
+
+    mvwaddstr(win, 4, 1, "RULES: ");
+    mvwaddstr(win, 5, 2, "1) You have 200s and 3 lives to complete each level.");
+    mvwaddstr(win, 6, 2, "2) Best 3 players (fastest) are displayed in the ranking.");
+    mvwaddstr(win, 7, 2, "3) Cars take away one life from you.");
+    mvwaddstr(win, 8, 2, "4) Stork takes away all your lives. ");
+    mvwaddstr(win, 9, 2, "5) You can save your game to file (but it wont include your current level progress). ");
+    mvwaddstr(win, 11, 1, "CARS: ");
+    mvwaddstr(win, 12, 2, "1) BLUE - friendly car, will stop if it sees you.");
+    mvwaddstr(win, 13, 2, "2) YELLOW - taxi car, click [T]  to order a taxi in a line in front of you.");
+    mvwaddstr(win, 14, 2, "3) RED and PURPLE - try to kill you.");
+
+    mvwaddstr(win, 17, 1, "Enter your name (max 8 char): ");
+
     wrefresh(win);
     echo();
     wgetnstr(win, name, 8);
@@ -728,20 +740,19 @@ TIMER *InitTimer(WIN *status){
 
 int UpdateTimer(TIMER *T, WIN *status, int new_time){ // return 1: time is over; otherwise: 0
     T->frame_no++;
-    float new=new_time+0.0;
+    // float new=new_time+0.0;
     T->pass_time = PASS_TIME - (T->frame_no * T->frame_time / 1000.0);
     if (T->pass_time < (T->frame_time / 1000.0)){
         T->pass_time = 0; // make this zero (floating point!)
     }
     else Sleep(T->frame_time);
-    if(new){
-        // printf("before: %.2f  ", T->pass_time);
-        // printf("new; %.2f  ", new);
-        T->pass_time = new -(T->frame_no * T->frame_time / 1000.0);
-        // printf("after %.2f", T->pass_time);
-    } 
+    // if(new){
+    //     // printf("before: %.2f  ", T->pass_time);
+    //     // printf("new; %.2f  ", new);
+    //     T->pass_time = new -(T->frame_no * T->frame_time / 1000.0);
+    //     // printf("after %.2f", T->pass_time);
+    // } 
     ShowTimer(status, T->pass_time);
-    // if (new) printf("after2 %.2f", T->pass_time);
     if (T->pass_time == 0) return 1;
     return 0;
 }
@@ -1011,7 +1022,7 @@ void InitGame(char name[],int level, int *cars_number, int *obstacles_number, in
     LoadConstFromFile("const.txt");
     loadLevelConstFromFile(level, cars_number, obstacles_number, max_car_speed, stork_speed);
 
-    if (level==1) {
+    if (level==1 && !*playwin) {
         *mainwin = Start();
         Welcome(*mainwin, name);
         *playwin = Init(*mainwin, ROWS, COLS, OFFY, OFFX, PLAY_COLOR, 1);
