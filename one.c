@@ -184,7 +184,7 @@ void EndGame(const char *info, WIN *W){
 void ShowStatus(WIN *W, FROG *f, int pts, int lvl, char name[]){
     mvwprintw(W->window, 1, 45, "x: %d  y: %d  ", f->x, f->y);
     mvwprintw(W->window, 1, 25, "%d", pts);
-    mvwprintw(W->window, 1, 60, "LEVEL: %d", lvl);
+    mvwprintw(W->window, 1, 65, "LEVEL: %d", lvl);
     mvwprintw(W->window, 1, 90, "NOW PLAYING: %s", name);
 
     wrefresh(W->window);
@@ -202,6 +202,7 @@ void ShowNewStatus(WIN *W, TIMER *T, FROG *f, int pts, int lvl, char name[]){
     ShowTimer(W, T->pass_time);
     mvwprintw(W->window, 1, 35, "Position: ");
     mvwprintw(W->window, 3, 2, "[Q] - Quit      [C] - Continue Saved Game     [X] - Save Game       [T] - order Taxi");
+    mvwprintw(W->window, 3, 90, "Karolina Glaza 198193");
     mvwprintw(W->window, 1, 118, "TOP 3 RESULTS:");
     FILE *file = fopen("game_ranking.txt", "r");
     char line[10];
@@ -218,7 +219,6 @@ void ShowNewStatus(WIN *W, TIMER *T, FROG *f, int pts, int lvl, char name[]){
     count--;
     }
     fclose(file);
-
     ShowStatus(W, f, pts, lvl, name);
 }
 
@@ -799,7 +799,7 @@ void ContinueGame(float* ran_pts, char* name, int* lvl, TIMER *T, WIN *status){
         name[i]=line[i];
         if(name[i]=='\n') name[i]='\0';
     }
-    *lvl=ConvertToInt(fgets(line, sizeof(line), file))-1; //later it increments
+    *lvl=ConvertToInt(fgets(line, sizeof(line), file)); 
     *ran_pts=(ConvertToInt(fgets(line, sizeof(line), file)));
     *ran_pts=*ran_pts*(-1)+200;
     UpdateTimer(T, status, (200-*ran_pts));
@@ -815,7 +815,7 @@ int MainLoop(float* ran_pts, char name[], int* lvl, WIN *status, FROG *frog,STOR
         SaveGame(ran_pts, name, lvl);
     } else if(key=='c'){ //continue from file
         ContinueGame(ran_pts, name, lvl, timer, status);
-        return 1;
+        return 3;
     }
         else{
             nanosleep((const struct timespec[]){{0, 50L}}, NULL);
@@ -982,7 +982,10 @@ int RunGame(float* ran_pts, char name[], int* level, WIN *statwin, WIN *playwin,
     else if (result == 2){ //2-died (return 0)
         EndGame("End. No more lives.", statwin);
         result=0;
+    } else if (result == 3){ //3-continue from file
+        return 1; 
     }
+      
     else {
         char info[100];
         sprintf(info, "Timer is over.");
