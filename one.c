@@ -1048,8 +1048,6 @@ void Ranking(char name[], float ran_pts, TIMER *t) {
     ran_pts=ran_pts-(t->pass_time);
     ran_pts=(600.0+ran_pts);
     int ran=(int)ran_pts;
-    printf("%s ",name);
-    printf(" %d",ran);
     
     FILE *file = fopen("game_ranking.txt", "r");
 
