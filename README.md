@@ -5,7 +5,7 @@ This is a Jumping Frog Game written in C using the ncurses library, developed as
 ## Author
 - Karolina Glaza [GitHub](https://github.com/kequel)
 
-Project made using demo game Catch the Ball from dr hab. inż. Michał Małafiejski [GitHub](https://github.com/animima)
+Project made using demo game Catch the Ball from dr hab. inż. Michał Małafiejski
 
 ### Version
 - Current version: **1.0**
@@ -15,56 +15,86 @@ Jumping Frog is an action game where the player controls a frog to navigate a ro
 Game include ranking with TOP 3 players (fastest to complete all 3 levels).
 
 ## Levels 
+level 1:
+
 ![Level1](img/1.png)
-level 1
+
+
+level 2:
 
 ![Level2](img/2.png)
-level 2
+
+
+level 3:
 
 ![Level3](img/3.png)
-level 3
+
 
 ## Game Components
 
+### FROG
+
 ![Frog](img/frog.png)
 
-**Player-Controlled Frog** - Moves vertically or horizontally with the W-A-S-D keys. The frog can also call for friendly taxis using the T key, although the taxi must be in front of him. Frog has 3 lives and 200s for each level.
+Moves vertically or horizontally with the W-A-S-D keys. The frog can also call for friendly taxis using the T key, although the taxi must be in front of him. Frog has 3 lives and 200s for each level.
+
+
+### STATIC OBSTACLES
 
 ![Static](img/static.png)
 
-**Static barriers that limit movement.** - Limit movment of frog and cars.
+Limit movment of frog and cars.
+
+
+### STORK
 
 ![Stork](img/stork.png)
 
-**Stork**  - Hunts the frog with dynamic movement. Kills frog instantly.
+Hunts the frog with dynamic movement. Kills frog instantly.
 
-**Cars:** 
+
+## Cars:
 
 Cars can have diffrent speeds, accelerations, colors and properties. They always stay on the same line.
 
+
+### RED CAR 
+
 ![RedCar](img/red.png)
 
-RED CAR - Wrapping, agressive (won't help the frog) car - disappears when reaching the border and apears on the other side. 
+Wrapping, agressive (won't help the frog) car - disappears when reaching the border and apears on the other side. 
 
+
+
+### PURPLE CAR 
 
 ![PurpleCar](img/purple.png)
 
-PURPLE CAR - Bouncing, agressive car - bounces when reaching the border.
+Bouncing, agressive car - bounces when reaching the border.
 
+
+
+### YELLOW CAR  
 
 ![YellowCar](img/yellow.png)
 
-YELLOW CAR - Wrapping, friendly, taxi car, can take frog to diffrent place, although can also kill.
+Wrapping, friendly, taxi car, can take frog to diffrent place, although can also kill.
 
+
+
+### BLUE CAR 
 
 ![BlueCar](img/blue.png)
 
-BLUE CAR - Bouncing, friendly, stopping car - stops when sees the frog, although can kill it if frog marches into it.
+Bouncing, friendly, stopping car - stops when sees the frog, although can kill it if frog marches into it.
 
+
+
+### RANDOM CAR 
 
 ![RainbowCar](img/rainbow.png)
 
-RANDOM CAR - has random speed, acceleration and type, can even not appear at all.
+Has random speed, acceleration and type, can even not appear at all.
 
 
 
