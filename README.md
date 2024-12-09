@@ -26,31 +26,47 @@ level 3
 
 ## Game Components
 
-**Player-Controlled Frog**
 ![Frog](img/frog.png)
-Moves vertically or horizontally with the W-A-S-D keys. The frog can also call for friendly taxis using the T key, although the taxi must be in front of him.
 
-Frog has 3 lives and 200s for each level.
+**Player-Controlled Frog** - Moves vertically or horizontally with the W-A-S-D keys. The frog can also call for friendly taxis using the T key, although the taxi must be in front of him. Frog has 3 lives and 200s for each level.
 
-**Static barriers that limit movement.**
 ![Static](img/static.png)
-Limit movment of frog and cars.
 
-**Stork** 
+**Static barriers that limit movement.** - Limit movment of frog and cars.
+
 ![Stork](img/stork.png)
-Hunts the frog with dynamic movement. Kills frog instantly.
 
-**Cars** 
+**Stork**  - Hunts the frog with dynamic movement. Kills frog instantly.
+
+**Cars:** 
+
+Cars can have diffrent speeds, accelerations, colors and properties. They always stay on the same line.
+
 ![RedCar](img/red.png)
-Wrapping, agressive (won't help the frog) car - disappears when reaching the border and apears on the other side. 
+
+RED CAR - Wrapping, agressive (won't help the frog) car - disappears when reaching the border and apears on the other side. 
+
+
 ![PurpleCar](img/purple.png)
-Bouncing, agressive car - bounces when reaching the border.
+
+PURPLE CAR - Bouncing, agressive car - bounces when reaching the border.
+
+
 ![YellowCar](img/yellow.png)
-Wrapping, friendly, taxi car, can take frog to diffrent place, although can also kill.
+
+YELLOW CAR - Wrapping, friendly, taxi car, can take frog to diffrent place, although can also kill.
+
+
 ![BlueCar](img/blue.png)
-Bouncing, friendly, stopping car - stops when sees the frog, although can kill it if frog marches into it.
+
+BLUE CAR - Bouncing, friendly, stopping car - stops when sees the frog, although can kill it if frog marches into it.
+
+
 ![RainbowCar](img/rainbow.png)
-Random Car - has random speed, acceleration and type, can even not appear at all.
+
+RANDOM CAR - has random speed, acceleration and type, can even not appear at all.
+
+
 
 ## Controls
 
