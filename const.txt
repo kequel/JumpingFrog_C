@@ -1,12 +1,12 @@
-3
-25
-200
-5
-25
-100
-0
-4
-2
+3 //useless
+25 //useless
+200 //useless
+5 //useless
+25 //useless
+100 //useless
+0 //useless
+4 //useless
+2 //useless
 3
 *.*
 ***
