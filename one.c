@@ -31,13 +31,16 @@
 #define CAR_G_COLOR 9
 #define STORK_COLOR 10
 
-
 //const from file (universal game parameters)
-int QUIT_TIME; // seconds to quit
-int FRAME_TIME; // ms (base frame time) (time interval between frames)
-int PASS_TIME; // s (time to die = no catched ball)
-int MVF_FACTOR; // moving interval >= FRAME_TIME * MVC_FACTOR [ms] FROG
-int ROWS, COLS, OFFY, OFFX, JUMPSIZE;
+const int QUIT_TIME=3; // seconds to quit
+const int FRAME_TIME=25; // ms (base frame time) (time interval between frames)
+const int PASS_TIME=200; // s (time to die = no catched ball)
+const int MVF_FACTOR=5; // moving interval >= FRAME_TIME * MVC_FACTOR [ms] FROG
+const int ROWS=25;
+const int COLLS=140;
+const int OFFY=0;
+const int OFFX=4;
+const int JUMPSIZE=2;
 
 typedef struct{
     WINDOW *window;
@@ -918,28 +921,28 @@ void InitObstacles(WIN* playwin, OBSTACLE* obstacles[], int obstacles_number){
     }
 }
 
-void LoadConstFromFile(const char *filename) {
-    FILE *file = fopen(filename, "r");
+// void LoadConstFromFile(const char *filename) {
+//     FILE *file = fopen(filename, "r");
 
-    char line[250];
-    int count = 9;
-    while (count != 0 && fgets(line, sizeof(line), file)) {
-        int value = ConvertToInt(line);
-        switch (count) {
-            case 9: QUIT_TIME = value; break;
-            case 8: FRAME_TIME = value; break;
-            case 7: PASS_TIME = value; break;
-            case 6: MVF_FACTOR = value; break;
-            case 5: ROWS = value; break;
-            case 4: COLS = value; break;
-            case 3: OFFX = value; break;
-            case 2:OFFY=value;break;
-            case 1: JUMPSIZE = value; break;
-        }
-        count--;
-    }
-    fclose(file);  
-}
+//     char line[250];
+//     int count = 9;
+//     while (count != 0 && fgets(line, sizeof(line), file)) {
+//         int value = ConvertToInt(line);
+//         switch (count) {
+//             case 9: QUIT_TIME = value; break;
+//             case 8: FRAME_TIME = value; break;
+//             case 7: PASS_TIME = value; break;
+//             case 6: MVF_FACTOR = value; break;
+//             case 5: ROWS = value; break;
+//             case 4: COLS = value; break;
+//             case 3: OFFX = value; break;
+//             case 2:OFFY=value;break;
+//             case 1: JUMPSIZE = value; break;
+//         }
+//         count--;
+//     }
+//     fclose(file);  
+// }
 
 void loadLevelConstFromFile(int num, int* cars_number, int* obstacles_number, int* max_car_speed, int* stork_speed){
     FILE *file = fopen("levels_const.txt", "r");
@@ -1022,14 +1025,14 @@ void CleanupLevel(TIMER *t, float *ranking_points, WIN *playwin, WIN *statwin, W
 }
 
 void InitGame(char name[],int level, int *cars_number, int *obstacles_number, int *max_car_speed, int *stork_speed, WINDOW **mainwin, WIN **playwin, WIN **statwin, TIMER **timer, FROG **frog, STORK **stork, CAR ***cars, OBSTACLE ***obstacles) {
-    LoadConstFromFile("const.txt");
+    // LoadConstFromFile("const.txt");
     loadLevelConstFromFile(level, cars_number, obstacles_number, max_car_speed, stork_speed);
 
     if (level==1 && !*playwin) {
         *mainwin = Start();
         Welcome(*mainwin, name);
-        *playwin = Init(*mainwin, ROWS, COLS, OFFY, OFFX, PLAY_COLOR, 1);
-        *statwin = Init(*mainwin, 6, COLS, ROWS + OFFY, OFFX, STAT_COLOR, 0);
+        *playwin = Init(*mainwin, ROWS, COLLS, OFFY, OFFX, PLAY_COLOR, 1);
+        *statwin = Init(*mainwin, 6, COLLS, ROWS + OFFY, OFFX, STAT_COLOR, 0);
     }
     ShowGoal(*playwin);
 
@@ -1113,6 +1116,7 @@ if (ran < val[2] || c < 3) {
 
 
 int main() {
+
     int lvl = 1; 
     char name[8];
     float ran_pts;
