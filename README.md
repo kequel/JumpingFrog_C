@@ -122,6 +122,10 @@ X: Save the game
 C: Continue from a saved game
 
 ## Configuration
-Game parameters like frog size, car types, speeds, and level settings are defined in external configuration files, which allows easy customization.
+Game parameters like frog size, car types, speeds, and level settings are defined in external configuration files, which allows easy customization
+
+## Installation 
+
+To compile and run the game, ensure you have ncurses installed.
 
 
